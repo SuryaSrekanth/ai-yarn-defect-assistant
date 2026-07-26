@@ -28,6 +28,126 @@ html, body, [class*="css"] {
     color: #2B2622;
 }
 
+/* KEYFRAMES FOR TEXTILE ANIMATIONS */
+@keyframes spool-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes needle-stitch {
+    0%, 100% { transform: translateY(0px) rotate(-10deg); }
+    50% { transform: translateY(-5px) rotate(5deg); }
+}
+
+@keyframes thread-weave {
+    0% { background-position: 0 0; }
+    100% { background-position: 24px 0; }
+}
+
+@keyframes skeleton-weave {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* STREAMLIT BUILT-IN SPINNER OVERRIDE (st.spinner) */
+[data-testid="stSpinner"], .stSpinner {
+    background-color: #E8DCC8 !important;
+    border: 2px dashed #B5541E !important;
+    border-radius: 6px !important;
+    padding: 1.1rem 1.4rem !important;
+    margin: 1.2rem 0 !important;
+    box-shadow: 2px 3px 0 rgba(43,38,34,0.2) !important;
+    position: relative !important;
+}
+
+/* Hide default circular SVG spinner ring */
+[data-testid="stSpinner"] svg,
+.stSpinner svg {
+    display: none !important;
+}
+
+[data-testid="stSpinner"] > div {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+/* Animated Spinning Yarn Spool before the text */
+[data-testid="stSpinner"] > div::before {
+    content: "🧵";
+    font-size: 1.8rem;
+    display: inline-block;
+    animation: spool-spin 1.2s linear infinite;
+    transform-origin: center center;
+    flex-shrink: 0;
+}
+
+/* Animated Dashed Thread Line after the text */
+[data-testid="stSpinner"] > div::after {
+    content: "";
+    display: inline-block;
+    height: 4px;
+    width: 50px;
+    background: repeating-linear-gradient(
+        90deg,
+        #B5541E 0px,
+        #B5541E 6px,
+        transparent 6px,
+        transparent 12px
+    );
+    background-size: 24px 4px;
+    animation: thread-weave 0.5s linear infinite;
+    border-radius: 2px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+[data-testid="stSpinner"] p, 
+[data-testid="stSpinner"] span {
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    color: #2E4057 !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* TOP HEADER SEWING THREAD RIBBON */
+div[data-testid="stDecoration"] {
+    background: repeating-linear-gradient(
+        90deg,
+        #B5541E 0px,
+        #B5541E 8px,
+        #2E4057 8px,
+        #2E4057 16px,
+        #E8DCC8 16px,
+        #E8DCC8 22px
+    ) !important;
+    height: 4px !important;
+}
+
+/* HIDE STREAMLIT TOP-RIGHT RUNNING STATUS WIDGET COMPLETELY */
+[data-testid="stStatusWidget"],
+.stStatusWidget,
+[data-testid="stHeader"] [data-testid="stStatusWidget"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
+/* STREAMLIT INITIAL APP LOADING / SKELETON OVERRIDE */
+[data-testid="stSkeleton"] {
+    background: linear-gradient(90deg, #E8DCC8 25%, #F6F1E4 50%, #E8DCC8 75%) !important;
+    background-size: 200% 100% !important;
+    animation: skeleton-weave 1.5s infinite !important;
+}
+
+[data-testid="stAppLoading"] {
+    background-color: #F6F1E4 !important;
+}
+
 .yarn-header {
     border-bottom: 3px double #2B2622;
     padding-bottom: 0.6rem;
@@ -200,12 +320,14 @@ if analyze:
 
     try:
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-        interaction = client.interactions.create(
-            model="gemini-3.6-flash",
-            input=prompt,
-        )
+        with st.spinner("Spinning yarn data & weaving AI inspection report..."):
+            interaction = client.interactions.create(
+                model="gemini-3.6-flash",
+                input=prompt,
+            )
         with st.container(key="report_card"):
             st.markdown('<div class="report-heading">Inspection Findings</div>', unsafe_allow_html=True)
             st.write(interaction.output_text)
     except Exception as e:
         st.error(f"Something went wrong calling the AI: {e}")
+
