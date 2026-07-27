@@ -125,38 +125,82 @@ div[data-testid="stDecoration"] {
     height: 4px !important;
 }
 
-/* STREAMLIT TOP-RIGHT RUNNING STATUS WIDGET TEXTILE OVERRIDE */
-/* Hide default swimmer/running icons and default spinners inside top-right status widget */
-[data-testid="stStatusWidget"] svg,
-[data-testid="stStatusWidget"] img,
-[data-testid="stStatusWidget"] [data-baseweb="spinner"],
-header[data-testid="stHeader"] [data-testid="stStatusWidget"] svg,
-header[data-testid="stHeader"] [data-testid="stStatusWidget"] img,
-div[data-testid="stStatusWidget"] button svg,
-div[data-testid="stStatusWidget"] button img {
+/* HIDE STREAMLIT TOP-RIGHT STATUS WIDGET COMPLETELY */
+[data-testid="stStatusWidget"],
+.stStatusWidget,
+header[data-testid="stHeader"] [data-testid="stStatusWidget"] {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
-/* Insert animated spinning Yarn Spool 🧵 in place of the default icon */
-[data-testid="stStatusWidget"] button::before,
-[data-testid="stStatusWidget"]::before,
-div[data-testid="stStatusWidget"] > div::before {
-    content: "🧵" !important;
-    font-size: 1.25rem !important;
-    display: inline-block !important;
-    animation: spool-spin 1.2s linear infinite !important;
-    margin-right: 6px !important;
-    vertical-align: middle !important;
+/* CUSTOM UIVERSE.IO FLYING FILE LOADER ANIMATION */
+.loader-con {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  height: 80px;
+  overflow: hidden;
+  margin: 0 auto;
 }
 
-/* Style status text to match textile theme */
-[data-testid="stStatusWidget"] button,
-[data-testid="stStatusWidget"] button span,
-[data-testid="stStatusWidget"] p {
-    font-family: 'IBM Plex Mono', monospace !important;
-    color: #2E4057 !important;
-    font-weight: 600 !important;
+.pfile {
+  position: absolute;
+  bottom: 15px;
+  width: 36px;
+  height: 46px;
+  background: linear-gradient(90deg, #B5541E, #2E4057);
+  border-radius: 4px;
+  transform-origin: center;
+  animation: flyRight 2.6s ease-in-out infinite;
+  opacity: 0;
+  box-shadow: 2px 2px 4px rgba(43,38,34,0.25);
 }
+
+.pfile::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 4px;
+  background-color: #ffffff;
+  border-radius: 2px;
+}
+
+.pfile::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 6px;
+  width: 16px;
+  height: 4px;
+  background-color: #ffffff;
+  border-radius: 2px;
+}
+
+@keyframes flyRight {
+  0% {
+    left: -10%;
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    left: 45%;
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+.pfile {
+  animation-delay: calc(var(--i) * 0.6s);
+}
+
 
 
 /* STREAMLIT INITIAL APP LOADING / SKELETON OVERRIDE */
@@ -342,14 +386,31 @@ if analyze:
 
     try:
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-        with st.spinner("Spinning yarn data & weaving AI inspection report..."):
-            interaction = client.interactions.create(
-                model="gemini-3.6-flash",
-                input=prompt,
-            )
+        loader = st.empty()
+        loader.markdown(
+            """
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 1rem 0;">
+                <div class="loader-con">
+                    <div class="pfile" style="--i: 1;"></div>
+                    <div class="pfile" style="--i: 2;"></div>
+                    <div class="pfile" style="--i: 3;"></div>
+                </div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; color: #2E4057; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.4rem;">
+                    Analyzing yarn sample & compiling report...
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        interaction = client.interactions.create(
+            model="gemini-3.6-flash",
+            input=prompt,
+        )
+        loader.empty()
         with st.container(key="report_card"):
             st.markdown('<div class="report-heading">Inspection Findings</div>', unsafe_allow_html=True)
             st.write(interaction.output_text)
     except Exception as e:
+        loader.empty()
         st.error(f"Something went wrong calling the AI: {e}")
 
