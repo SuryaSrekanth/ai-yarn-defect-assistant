@@ -1,9 +1,14 @@
+import importlib
 import os
 import random
 
+import pdf_generator
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
+
+importlib.reload(pdf_generator)
+from pdf_generator import generate_pdf_report
 
 load_dotenv()
 
@@ -11,6 +16,9 @@ st.set_page_config(page_title="Yarn Inspection Desk", page_icon="🧵", layout="
 
 if "batch_no" not in st.session_state:
     st.session_state.batch_no = f"{random.randint(10, 99)}-{random.randint(100, 999)}"
+
+if "inspection_data" not in st.session_state:
+    st.session_state.inspection_data = None
 
 THEME_CSS = """
 <style>
@@ -407,10 +415,45 @@ if analyze:
             input=prompt,
         )
         loader.empty()
-        with st.container(key="report_card"):
-            st.markdown('<div class="report-heading">Inspection Findings</div>', unsafe_allow_html=True)
-            st.write(interaction.output_text)
+        st.session_state.inspection_data = {
+            "batch_no": st.session_state.batch_no,
+            "yarn_count": yarn_count_value,
+            "count_unit": yarn_count_unit,
+            "thick_places": thick_places,
+            "thin_places": thin_places,
+            "neps": neps,
+            "output_text": interaction.output_text,
+        }
     except Exception as e:
         loader.empty()
         st.error(f"Something went wrong calling the AI: {e}")
+
+if st.session_state.inspection_data:
+    data = st.session_state.inspection_data
+    with st.container(key="report_card"):
+        st.markdown('<div class="report-heading">Inspection Findings</div>', unsafe_allow_html=True)
+        st.write(data["output_text"])
+
+    try:
+        pdf_bytes = generate_pdf_report(
+            batch_no=data["batch_no"],
+            yarn_count=data["yarn_count"],
+            count_unit=data["count_unit"],
+            thick_places=data["thick_places"],
+            thin_places=data["thin_places"],
+            neps=data["neps"],
+            ai_report_text=data["output_text"],
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.download_button(
+            label="📥 Download PDF Inspection Report",
+            data=pdf_bytes,
+            file_name=f"yarn_inspection_batch_{data['batch_no']}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+    except Exception as pdf_err:
+        st.warning(f"Could not prepare PDF report: {pdf_err}")
+
 
