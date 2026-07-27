@@ -125,17 +125,39 @@ div[data-testid="stDecoration"] {
     height: 4px !important;
 }
 
-/* HIDE STREAMLIT TOP-RIGHT RUNNING STATUS WIDGET COMPLETELY */
-[data-testid="stStatusWidget"],
-.stStatusWidget,
-[data-testid="stHeader"] [data-testid="stStatusWidget"] {
+/* STREAMLIT TOP-RIGHT RUNNING STATUS WIDGET TEXTILE OVERRIDE */
+/* Hide default swimmer/running icons and default spinners inside top-right status widget */
+[data-testid="stStatusWidget"] svg,
+[data-testid="stStatusWidget"] img,
+[data-testid="stStatusWidget"] [data-baseweb="spinner"],
+header[data-testid="stHeader"] [data-testid="stStatusWidget"] svg,
+header[data-testid="stHeader"] [data-testid="stStatusWidget"] img,
+div[data-testid="stStatusWidget"] button svg,
+div[data-testid="stStatusWidget"] button img {
     display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    pointer-events: none !important;
 }
+
+/* Insert animated spinning Yarn Spool 🧵 in place of the default icon */
+[data-testid="stStatusWidget"] button::before,
+[data-testid="stStatusWidget"]::before,
+div[data-testid="stStatusWidget"] > div::before {
+    content: "🧵" !important;
+    font-size: 1.25rem !important;
+    display: inline-block !important;
+    animation: spool-spin 1.2s linear infinite !important;
+    margin-right: 6px !important;
+    vertical-align: middle !important;
+}
+
+/* Style status text to match textile theme */
+[data-testid="stStatusWidget"] button,
+[data-testid="stStatusWidget"] button span,
+[data-testid="stStatusWidget"] p {
+    font-family: 'IBM Plex Mono', monospace !important;
+    color: #2E4057 !important;
+    font-weight: 600 !important;
+}
+
 
 /* STREAMLIT INITIAL APP LOADING / SKELETON OVERRIDE */
 [data-testid="stSkeleton"] {
