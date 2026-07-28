@@ -370,7 +370,14 @@ with st.container(key="tag_card"):
     thin_places = st.number_input("Thin places", min_value=0, value=0)
     neps = st.number_input("Neps", min_value=0, value=0)
 
-    analyze = st.button("Analyze")
+    btn_col1, btn_col2 = st.columns([3, 1])
+    with btn_col1:
+        analyze = st.button("Analyze", use_container_width=True)
+    with btn_col2:
+        if st.button("🔄 New Batch", use_container_width=True):
+            st.session_state.batch_no = f"{random.randint(10, 99)}-{random.randint(100, 999)}"
+            st.session_state.inspection_data = None
+            st.rerun()
 
 stitch_divider()
 
@@ -435,7 +442,8 @@ if st.session_state.inspection_data:
         st.write(data["output_text"])
 
     try:
-        pdf_bytes = generate_pdf_report(
+        importlib.reload(pdf_generator)
+        pdf_bytes = pdf_generator.generate_pdf_report(
             batch_no=data["batch_no"],
             yarn_count=data["yarn_count"],
             count_unit=data["count_unit"],
