@@ -1,4 +1,4 @@
-# AI Textile Defect Assistant
+# AI Yarn Defect Assistant
 
 A Streamlit app that takes yarn testing counts (yarn count, thick places, thin
 places, neps) and uses Gemini to explain likely causes, who to notify, and
