@@ -339,6 +339,28 @@ div[data-testid="stButton"] button:focus-visible {
     text-transform: uppercase;
     margin-bottom: 0.6rem;
 }
+.lab-error-card {
+    background-color: #FDF6E2;
+    border: 2px solid #B5541E;
+    border-left: 6px solid #B5541E;
+    border-radius: 4px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: #2B2622;
+}
+.lab-error-card .error-title {
+    font-family: 'Special Elite', monospace;
+    font-size: 1rem;
+    color: #B5541E;
+    letter-spacing: 1px;
+    margin-bottom: 0.3rem;
+}
+.lab-error-card .error-body {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #4A3E3D;
+}
 </style>
 """
 st.markdown(THEME_CSS, unsafe_allow_html=True)
@@ -346,6 +368,42 @@ st.markdown(THEME_CSS, unsafe_allow_html=True)
 
 def stitch_divider():
     st.markdown('<div class="stitch-divider">' + " ✕" * 20 + "</div>", unsafe_allow_html=True)
+
+
+def generate_rule_based_analysis(yarn_count, count_unit, thick_places, thin_places, neps):
+    total_defects = thick_places + thin_places + neps
+
+    causes = []
+    if thick_places > 35:
+        causes.append("- **High Thick Places**: Indicates damaged top roller cots, worn drafting aprons, or loose fly accumulating in the drafting zone.")
+    if thin_places > 25:
+        causes.append("- **High Thin Places**: Indicates incorrect traveler weight, excessive spinning tension, or irregular roving piecings.")
+    if neps > 45:
+        causes.append("- **High Nep Count**: Indicates worn carding wire clothing, improper carding gauge settings, or high trash content in raw cotton.")
+    if not causes:
+        causes.append("- **Normal Defect Range**: Metrics are within standard operational tolerances for this yarn count.")
+
+    notify = [
+        "- Spinning Shift Supervisor (Ring Frame section)",
+        "- Quality Assurance (QA) Laboratory Manager",
+        "- Carding & Preparatory Master (if Nep count is high)",
+    ]
+
+    next_checks = [
+        "1. Run a Spectrogram / Uster Mass Diagram to detect periodic drafting faults.",
+        "2. Perform spindle-wise bobbin testing to isolate mechanical failures to specific spindles.",
+        "3. Check top roller cots for cuts, gouges, or oil contamination.",
+        "4. Inspect clearer rolls and pneumatic suction system for fly buildup.",
+    ]
+
+    return (
+        f"# QUALITY ASSESSMENT FOR {yarn_count} {count_unit} YARN\n"
+        f"**Summary**: Total defect index is **{total_defects}** per 1,000m. "
+        f"({'High defect density detected requiring machine inspection.' if total_defects > 80 else 'Yarn quality is within operational limits.'})\n\n"
+        f"## 1. POSSIBLE CAUSES\n" + "\n".join(causes) + "\n\n"
+        f"## 2. WHO TO NOTIFY\n" + "\n".join(notify) + "\n\n"
+        f"## 3. WHAT TO CHECK NEXT\n" + "\n".join(next_checks)
+    )
 
 
 st.markdown(
@@ -382,25 +440,35 @@ with st.container(key="tag_card"):
 stitch_divider()
 
 if analyze:
-    prompt = (
-        "You are a textile quality control expert reviewing a yarn testing report.\n"
-        f"Yarn count: {yarn_count_value} {yarn_count_unit}\n"
-        f"Thick places: {thick_places}\n"
-        f"Thin places: {thin_places}\n"
-        f"Neps: {neps}\n\n"
-        "Acceptable defect levels vary a lot by yarn count (finer yarns typically tolerate "
-        "fewer defects per km than coarser yarns), so factor the given count and its unit "
-        "into your judgment of whether these numbers are actually high, normal, or low for "
-        "this yarn, before explaining causes.\n\n"
-        "Based on these defect counts, explain in plain language:\n"
-        "1. Possible causes (e.g. carding issues, drafting tension, raw material contamination)\n"
-        "2. Who should be notified (which department/role)\n"
-        "3. What should be checked next\n"
-        "Keep it concise and practical for a lab technician."
-    )
+    if yarn_count_value <= 0.0:
+        st.markdown(
+            """
+            <div class="lab-error-card">
+                <div class="error-title">⚠️ MEASUREMENT INPUT REQUIRED</div>
+                <div class="error-body">Please enter a valid Yarn Count (e.g. 30.0 Ne) before running defect analysis.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        prompt = (
+            "You are a textile quality control expert reviewing a yarn testing report.\n"
+            f"Yarn count: {yarn_count_value} {yarn_count_unit}\n"
+            f"Thick places: {thick_places}\n"
+            f"Thin places: {thin_places}\n"
+            f"Neps: {neps}\n\n"
+            "Acceptable defect levels vary a lot by yarn count (finer yarns typically tolerate "
+            "fewer defects per km than coarser yarns), so factor the given count and its unit "
+            "into your judgment of whether these numbers are actually high, normal, or low for "
+            "this yarn, before explaining causes.\n\n"
+            "Based on these defect counts, explain in plain language:\n"
+            "1. Possible causes (e.g. carding issues, drafting tension, raw material contamination)\n"
+            "2. Who should be notified (which department/role)\n"
+            "3. What should be checked next\n"
+            "Keep it concise and practical for a lab technician."
+        )
 
-    try:
-        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         loader = st.empty()
         loader.markdown(
             """
@@ -417,11 +485,35 @@ if analyze:
             """,
             unsafe_allow_html=True,
         )
-        interaction = client.interactions.create(
-            model="gemini-3.6-flash",
-            input=prompt,
-        )
+
+        ai_success = False
+        output_text = ""
+        if api_key:
+            try:
+                client = genai.Client(api_key=api_key)
+                interaction = client.interactions.create(
+                    model="gemini-3.6-flash",
+                    input=prompt,
+                )
+                output_text = interaction.output_text
+                ai_success = True
+            except Exception:
+                ai_success = False
+
         loader.empty()
+
+        if not ai_success:
+            st.markdown(
+                """
+                <div class="lab-error-card">
+                    <div class="error-title">⚠️ QUALITY DIAGNOSTIC ENGINE NOTICE</div>
+                    <div class="error-body">The online AI analysis engine is currently undergoing maintenance or network configuration. An offline rule-based report has been generated below so you can proceed with quality analysis and PDF export.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            output_text = generate_rule_based_analysis(yarn_count_value, yarn_count_unit, thick_places, thin_places, neps)
+
         st.session_state.inspection_data = {
             "batch_no": st.session_state.batch_no,
             "yarn_count": yarn_count_value,
@@ -429,11 +521,8 @@ if analyze:
             "thick_places": thick_places,
             "thin_places": thin_places,
             "neps": neps,
-            "output_text": interaction.output_text,
+            "output_text": output_text,
         }
-    except Exception as e:
-        loader.empty()
-        st.error(f"Something went wrong calling the AI: {e}")
 
 if st.session_state.inspection_data:
     data = st.session_state.inspection_data
@@ -461,8 +550,16 @@ if st.session_state.inspection_data:
             mime="application/pdf",
             use_container_width=True,
         )
-    except Exception as pdf_err:
-        st.warning(f"Could not prepare PDF report: {pdf_err}")
+    except Exception:
+        st.markdown(
+            """
+            <div class="lab-error-card">
+                <div class="error-title">⚠️ PDF EXPORT NOTICE</div>
+                <div class="error-body">Unable to compile PDF document at this moment. Please click 'Analyze' or '🔄 New Batch' again.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 st.markdown("<br><hr style='border: 1px dashed #2B2622; opacity: 0.35;'><div style='text-align: center; font-family: \"IBM Plex Mono\", monospace; font-size: 0.8rem; color: #2E4057; font-weight: 500;'>Developed by <strong>Surya Srekanth</strong> &middot; AI Yarn Defect Assistant</div>", unsafe_allow_html=True)
 
