@@ -1,4 +1,4 @@
-# 🧵 AI Textile Defect Assistant
+# 🧵 AI Yarn Defect Assistant
 
 [![Live App](https://img.shields.io/badge/Streamlit-Live%20Demo-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://ai-yarn-defect-assistant.streamlit.app)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -48,7 +48,7 @@ flowchart TD
 ## 📁 Repository Structure
 
 ```
-ai-textile-defect-assistant/
+ai-yarn-defect-assistant/
 ├── app.py                  # Main Streamlit web application & UI components
 ├── pdf_generator.py        # PDF layout builder, Unicode sanitizer & FPDF2 engine
 ├── requirements.txt        # Project dependencies
@@ -70,8 +70,8 @@ ai-textile-defect-assistant/
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/SuryaSrekanth/ai-textile-defect-assistant.git
-   cd ai-textile-defect-assistant
+   git clone https://github.com/SuryaSrekanth/ai-yarn-defect-assistant.git
+   cd ai-yarn-defect-assistant
    ```
 
 2. **Set Up Virtual Environment**
@@ -112,7 +112,7 @@ ai-textile-defect-assistant/
 
 **Surya Srekanth**
 - **GitHub**: [@SuryaSrekanth](https://github.com/SuryaSrekanth)
-- **Live Project**: [AI Textile Defect Assistant](https://ai-yarn-defect-assistant.streamlit.app)
+- **Live Project**: [AI Yarn Defect Assistant](https://ai-yarn-defect-assistant.streamlit.app)
 
 ---
 
