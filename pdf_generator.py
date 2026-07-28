@@ -48,7 +48,7 @@ class TextileReportPDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 5, "Confidential - Textile Lab QC System", align="L")
+        self.cell(0, 5, "Developed by Surya Srekanth | AI Yarn Defect Assistant", align="L")
         self.set_y(-15)
         self.cell(0, 5, f"Page {self.page_no()}/{{nb}}", align="R")
 
@@ -80,7 +80,7 @@ def generate_pdf_report(
 
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(0, 5, f"Report Generated: {timestamp}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, f"Report Generated: {timestamp}  |  Developed by: Surya Srekanth", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
     # Measured Values Table Header
@@ -150,5 +150,11 @@ def generate_pdf_report(
         else:
             pdf.multi_cell(0, 5, clean_text, new_x="LMARGIN", new_y="NEXT")
 
+    pdf.ln(6)
+    pdf.set_draw_color(220, 220, 220)
+    pdf.set_fill_color(246, 241, 228)
+    pdf.set_font("Helvetica", "I", 8.5)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 6, "Report Generated via AI Yarn Defect Assistant  |  Developer: Surya Srekanth", border=1, fill=True, align="C", new_x="LMARGIN", new_y="NEXT")
 
     return bytes(pdf.output())

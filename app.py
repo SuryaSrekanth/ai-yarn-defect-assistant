@@ -456,4 +456,6 @@ if st.session_state.inspection_data:
     except Exception as pdf_err:
         st.warning(f"Could not prepare PDF report: {pdf_err}")
 
+st.markdown("<br><hr style='border: 1px dashed #2B2622; opacity: 0.35;'><div style='text-align: center; font-family: \"IBM Plex Mono\", monospace; font-size: 0.8rem; color: #2E4057; font-weight: 500;'>Developed by <strong>Surya Srekanth</strong> &middot; AI Yarn Defect Assistant</div>", unsafe_allow_html=True)
+
 
