@@ -352,7 +352,7 @@ st.markdown(
     f"""
     <div class="yarn-header">
         <h1>🧵 Yarn Inspection Desk</h1>
-        <div class="batch">BATCH NO. {st.session_state.batch_no} &middot; AI-ASSISTED DEFECT ANALYSIS</div>
+        <div class="batch">BATCH NO. {st.session_state.batch_no} &middot; AI DEFECT ANALYSIS &middot; DEVELOPED BY SURYA SREKANTH</div>
     </div>
     """,
     unsafe_allow_html=True,

@@ -38,10 +38,15 @@ class TextileReportPDF(FPDF):
         self.set_text_color(181, 84, 30)
         self.cell(0, 5, "YARN INSPECTION & AI DEFECT ANALYSIS REPORT", align="C", new_x="LMARGIN", new_y="NEXT")
 
+        # Developer Attribution
+        self.set_font("Helvetica", "I", 8.5)
+        self.set_text_color(80, 80, 80)
+        self.cell(0, 4, "System Developer: Surya Srekanth", align="C", new_x="LMARGIN", new_y="NEXT")
+
         # Decorative Divider Line
         self.set_draw_color(43, 38, 34)
         self.set_line_width(0.4)
-        self.line(10, 26, 200, 26)
+        self.line(10, 30, 200, 30)
         self.ln(6)
 
     def footer(self):
