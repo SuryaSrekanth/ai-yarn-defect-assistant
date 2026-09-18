@@ -31,6 +31,25 @@ def sanitize_text(text: str) -> str:
         "🔵": "",
         "🟡": "",
         "🔴": "",
+        # Unicode Box-Drawing characters -> ASCII equivalents
+        "│": "|", "┃": "|", "╽": "|", "╿": "|", "╎": "|", "╏": "|", "║": "|", "┆": "|", "┊": "|",
+        "─": "-", "━": "-", "┄": "-", "┅": "-", "┈": "-", "┉": "-", "═": "=", "—": "-",
+        "┌": "+", "┍": "+", "┎": "+", "┏": "+", "╔": "+",
+        "┐": "+", "┑": "+", "┒": "+", "┓": "+", "╗": "+",
+        "└": "+", "┕": "+", "▖": "+", "┗": "+", "╚": "+",
+        "┘": "+", "┙": "+", "┚": "+", "┛": "+", "╝": "+",
+        "├": "+", "┝": "+", "┞": "+", "┟": "+", "┠": "+", "┡": "+", "┢": "+", "┣": "+", "╠": "+",
+        "┤": "+", "┥": "+", "┦": "+", "┧": "+", "┨": "+", "┩": "+", "┪": "+", "┫": "+", "╣": "+",
+        "┬": "+", "┭": "+", "┮": "+", "┯": "+", "┰": "+", "┱": "+", "┲": "+", "┳": "+", "╦": "+",
+        "┴": "+", "┵": "+", "┶": "+", "┷": "+", "┸": "+", "┹": "+", "┺": "+", "┻": "+", "╩": "+",
+        "┼": "+", "┽": "+", "┾": "+", "┿": "+", "╀": "+", "╁": "+", "╂": "+", "╃": "+", "╬": "+",
+        # Unicode Arrows & Geometric pointers
+        "→": "-->", "←": "<--", "↑": "^", "↓": "v", "↔": "<->",
+        "⇒": "=>", "⇐": "<=", "⇑": "^", "⇓": "v", "⇔": "<=>",
+        "►": ">", "◄": "<", "▲": "^", "▼": "v", "▸": ">", "▾": "v",
+        "✔": "[OK]", "✓": "[OK]", "✗": "[X]", "✘": "[X]",
+        "★": "*", "☆": "*", "◆": "*", "◇": "*", "●": "*", "○": "*",
+        "█": "#", "■": "#", "□": "[ ]",
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
@@ -151,31 +170,72 @@ def generate_pdf_report(
     pdf.set_font("Helvetica", "", 9.5)
     pdf.set_text_color(30, 30, 30)
 
+    in_code_block = False
     lines = ai_report_text.split("\n")
     for line in lines:
-        raw_line = line.strip()
-        if not raw_line or raw_line.startswith("---"):
+        raw_line = line.rstrip()
+        stripped_line = raw_line.strip()
+
+        # Handle Markdown Code Block delimiters (```)
+        if stripped_line.startswith("```"):
+            in_code_block = not in_code_block
+            if in_code_block:
+                pdf.ln(1.5)
+            else:
+                pdf.ln(1.5)
+                pdf.set_font("Helvetica", "", 9.5)
+                pdf.set_text_color(30, 30, 30)
+            continue
+
+        # If inside a code block (e.g. ASCII diagram / schematic)
+        if in_code_block:
+            clean_diagram_line = sanitize_text(raw_line)
+            pdf.set_font("Courier", "", 7.5)
+            pdf.set_text_color(40, 40, 40)
+            pdf.cell(0, 3.8, clean_diagram_line, new_x="LMARGIN", new_y="NEXT")
+            continue
+
+        # Check for un-fenced ASCII diagrams (lines containing box/flowchart symbols)
+        is_diagram_line = (
+            (stripped_line.startswith(("+", "|")) and ("|" in stripped_line or "-" in stripped_line or "+" in stripped_line))
+            or (stripped_line.startswith("[") and ("-->" in stripped_line or "->" in stripped_line or "|" in stripped_line or "]" in stripped_line and len(stripped_line) < 30))
+            or (stripped_line.startswith("v") and len(stripped_line) < 6)
+            or (stripped_line.startswith("^") and len(stripped_line) < 6)
+            or ("--->" in stripped_line or "----" in stripped_line and not stripped_line.startswith("---"))
+        )
+
+        if is_diagram_line:
+            clean_diagram_line = sanitize_text(raw_line)
+            pdf.set_font("Courier", "", 7.5)
+            pdf.set_text_color(40, 40, 40)
+            pdf.cell(0, 3.8, clean_diagram_line, new_x="LMARGIN", new_y="NEXT")
+            continue
+
+        # Standard Markdown text rendering
+        pdf.set_font("Helvetica", "", 9.5)
+        pdf.set_text_color(30, 30, 30)
+
+        if not stripped_line or stripped_line.startswith("---"):
             pdf.ln(2)
             continue
 
-
-        # Clean markdown formatting tags and sanitize unicode characters
-        clean_text = raw_line.lstrip("-*# ").replace("**", "").replace("*", "").strip()
+        clean_text = stripped_line.lstrip("-*# ").replace("**", "").replace("*", "").strip()
         clean_text = sanitize_text(clean_text)
 
-        if raw_line.startswith("#"):
+        if stripped_line.startswith("#"):
+            pdf.ln(1.5)
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_text_color(46, 64, 87)
             pdf.multi_cell(0, 5, clean_text.upper(), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9.5)
             pdf.set_text_color(30, 30, 30)
-        elif raw_line.startswith("**") or (len(raw_line) > 2 and raw_line[0:2].isdigit()):
+        elif stripped_line.startswith("**") or (len(stripped_line) > 2 and stripped_line[0:2].isdigit()):
             pdf.set_font("Helvetica", "B", 9.5)
             pdf.set_text_color(46, 64, 87)
             pdf.multi_cell(0, 5.5, clean_text, new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9.5)
             pdf.set_text_color(30, 30, 30)
-        elif raw_line.startswith("- ") or raw_line.startswith("* "):
+        elif stripped_line.startswith("- ") or stripped_line.startswith("* "):
             pdf.multi_cell(0, 5, f"  - {clean_text}", new_x="LMARGIN", new_y="NEXT")
         else:
             pdf.multi_cell(0, 5, clean_text, new_x="LMARGIN", new_y="NEXT")

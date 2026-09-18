@@ -720,7 +720,8 @@ if analyze:
                 "1. Quality evaluation (explain if these levels are normal/high for this count)\n"
                 "2. Root causes specific to ring spinning machinery and preparatory sliver\n"
                 "3. Who to notify (specific roles/sections)\n"
-                "4. Immediate maintenance & check steps on the shop floor"
+                "4. Immediate maintenance & check steps on the shop floor\n\n"
+                "Formatting Guideline: If you include any schematic or flow diagram, enclose it inside a standard markdown code block (``` ... ```) using simple ASCII characters (+, -, |, -->) and keep line widths under 55 characters so it formats crisply in PDF laboratory reports."
             )
         elif "Double" in yarn_type_selected:
             prompt = (
@@ -740,7 +741,8 @@ if analyze:
                 "1. Quality evaluation (torque balance, plied defects)\n"
                 "2. Root causes specific to TFO twisting, assembly winding, and conditioning\n"
                 "3. Who to notify (specific roles/sections)\n"
-                "4. Immediate corrective checks on the twisting floor"
+                "4. Immediate corrective checks on the twisting floor\n\n"
+                "Formatting Guideline: If you include any schematic or flow diagram, enclose it inside a standard markdown code block (``` ... ```) using simple ASCII characters (+, -, |, -->) and keep line widths under 55 characters so it formats crisply in PDF laboratory reports."
             )
         else:
             prompt = (
@@ -760,7 +762,8 @@ if analyze:
                 "1. Quality evaluation (rotor yarn structure, dust influence)\n"
                 "2. Root causes specific to rotor spin-box, navel, opening roller, and sliver\n"
                 "3. Who to notify (specific roles/sections)\n"
-                "4. Immediate maintenance & check steps on the rotor floor"
+                "4. Immediate maintenance & check steps on the rotor floor\n\n"
+                "Formatting Guideline: If you include any schematic or flow diagram, enclose it inside a standard markdown code block (``` ... ```) using simple ASCII characters (+, -, |, -->) and keep line widths under 55 characters so it formats crisply in PDF laboratory reports."
             )
 
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
