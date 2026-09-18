@@ -1,59 +1,105 @@
 from datetime import datetime
+import unicodedata
 from fpdf import FPDF
 
 
+UNICODE_REPLACEMENTS = {
+    # Typographic punctuation
+    "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-", "\u2015": "-",
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'",
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"',
+    "\u2026": "...", "\u2022": "-", "\u2023": ">", "\u2043": "-", "\u00a0": " ", "·": "-",
+    # Math & Symbols
+    "α": "alpha", "β": "beta", "±": "+/-", "≥": ">=", "≤": "<=", "×": "x", "°": " deg",
+    "✔": "[OK]", "✓": "[OK]", "✗": "[X]", "✘": "[X]",
+    "★": "*", "☆": "*", "◆": "*", "◇": "*", "●": "*", "○": "*",
+    "█": "#", "■": "#", "□": "[ ]",
+    # Textile / App Emojis to remove cleanly
+    "🧵": "", "📊": "", "💬": "", "⚠️": "", "📥": "", "🔄": "",
+    "🟢": "", "🔵": "", "🟡": "", "🔴": "",
+}
+
+# 1. Box Drawing characters (U+2500 - U+257F) - All 128 characters mapped
+for _cp in range(0x2500, 0x2580):
+    _ch = chr(_cp)
+    _name = unicodedata.name(_ch, "")
+    if "HORIZONTAL" in _name or "DASH" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "=" if "DOUBLE" in _name else "-"
+    elif "VERTICAL" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "|"
+    else:
+        UNICODE_REPLACEMENTS[_ch] = "+"
+
+# 2. Block elements (U+2580 - U+259F)
+for _cp in range(0x2580, 0x25A0):
+    UNICODE_REPLACEMENTS[chr(_cp)] = "#"
+
+# 3. Geometric shapes (U+25A0 - U+25FF)
+for _cp in range(0x25A0, 0x2600):
+    _ch = chr(_cp)
+    _name = unicodedata.name(_ch, "")
+    if "UP" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "^"
+    elif "DOWN" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "v"
+    elif "RIGHT" in _name or "POINTER" in _name:
+        UNICODE_REPLACEMENTS[_ch] = ">"
+    elif "LEFT" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "<"
+    elif "CIRCLE" in _name or "DIAMOND" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "*"
+    elif "SQUARE" in _name or "RECTANGLE" in _name:
+        UNICODE_REPLACEMENTS[_ch] = "[ ]" if "WHITE" in _name else "#"
+
+# 4. Arrows & Dingbats (U+2190-U+21FF, U+2790-U+27BF, U+27F0-U+27FF, U+2900-U+297F, U+2B00-U+2BFF)
+_arrow_ranges = (
+    list(range(0x2190, 0x2200))
+    + list(range(0x2790, 0x27C0))
+    + list(range(0x27F0, 0x2800))
+    + list(range(0x2900, 0x2980))
+    + list(range(0x2B00, 0x2C00))
+)
+for _cp in _arrow_ranges:
+    _ch = chr(_cp)
+    try:
+        _name = unicodedata.name(_ch, "")
+    except Exception:
+        continue
+    if "ARROW" in _name or "POINTER" in _name or "DART" in _name:
+        if "LEFT" in _name and "RIGHT" in _name:
+            UNICODE_REPLACEMENTS[_ch] = "<-->"
+        elif "UP" in _name and "DOWN" in _name:
+            UNICODE_REPLACEMENTS[_ch] = "^v"
+        elif "LEFT" in _name:
+            UNICODE_REPLACEMENTS[_ch] = "<--"
+        elif "RIGHT" in _name:
+            UNICODE_REPLACEMENTS[_ch] = "-->"
+        elif "UP" in _name:
+            UNICODE_REPLACEMENTS[_ch] = "^"
+        elif "DOWN" in _name:
+            UNICODE_REPLACEMENTS[_ch] = "v"
+
+
 def sanitize_text(text: str) -> str:
-    replacements = {
-        "\u2013": "-",  # en-dash
-        "\u2014": "-",  # em-dash
-        "\u2018": "'",  # left single quote
-        "\u2019": "'",  # right single quote
-        "\u201c": '"',  # left double quote
-        "\u201d": '"',  # right double quote
-        "\u2026": "...",  # ellipsis
-        "\u2022": "-",  # bullet point
-        "\u00a0": " ",  # non-breaking space
-        "·": "-",  # middle dot
-        "α": "alpha",
-        "β": "beta",
-        "±": "+/-",
-        "≥": ">=",
-        "≤": "<=",
-        "×": "x",
-        "°": " deg",
-        "🧵": "",
-        "📊": "",
-        "💬": "",
-        "⚠️": "",
-        "📥": "",
-        "🔄": "",
-        "🟢": "",
-        "🔵": "",
-        "🟡": "",
-        "🔴": "",
-        # Unicode Box-Drawing characters -> ASCII equivalents
-        "│": "|", "┃": "|", "╽": "|", "╿": "|", "╎": "|", "╏": "|", "║": "|", "┆": "|", "┊": "|",
-        "─": "-", "━": "-", "┄": "-", "┅": "-", "┈": "-", "┉": "-", "═": "=", "—": "-",
-        "┌": "+", "┍": "+", "┎": "+", "┏": "+", "╔": "+",
-        "┐": "+", "┑": "+", "┒": "+", "┓": "+", "╗": "+",
-        "└": "+", "┕": "+", "▖": "+", "┗": "+", "╚": "+",
-        "┘": "+", "┙": "+", "┚": "+", "┛": "+", "╝": "+",
-        "├": "+", "┝": "+", "┞": "+", "┟": "+", "┠": "+", "┡": "+", "┢": "+", "┣": "+", "╠": "+",
-        "┤": "+", "┥": "+", "┦": "+", "┧": "+", "┨": "+", "┩": "+", "┪": "+", "┫": "+", "╣": "+",
-        "┬": "+", "┭": "+", "┮": "+", "┯": "+", "┰": "+", "┱": "+", "┲": "+", "┳": "+", "╦": "+",
-        "┴": "+", "┵": "+", "┶": "+", "┷": "+", "┸": "+", "┹": "+", "┺": "+", "┻": "+", "╩": "+",
-        "┼": "+", "┽": "+", "┾": "+", "┿": "+", "╀": "+", "╁": "+", "╂": "+", "╃": "+", "╬": "+",
-        # Unicode Arrows & Geometric pointers
-        "→": "-->", "←": "<--", "↑": "^", "↓": "v", "↔": "<->",
-        "⇒": "=>", "⇐": "<=", "⇑": "^", "⇓": "v", "⇔": "<=>",
-        "►": ">", "◄": "<", "▲": "^", "▼": "v", "▸": ">", "▾": "v",
-        "✔": "[OK]", "✓": "[OK]", "✗": "[X]", "✘": "[X]",
-        "★": "*", "☆": "*", "◆": "*", "◇": "*", "●": "*", "○": "*",
-        "█": "#", "■": "#", "□": "[ ]",
-    }
-    for old, new in replacements.items():
+    for old, new in UNICODE_REPLACEMENTS.items():
         text = text.replace(old, new)
-    return text.encode("latin-1", errors="replace").decode("latin-1")
+    out = []
+    for c in text:
+        try:
+            c.encode("latin-1")
+            out.append(c)
+        except UnicodeEncodeError:
+            cat = unicodedata.category(c)
+            if cat.startswith("S") or cat.startswith("P"):
+                out.append("-")
+            elif cat.startswith("Z"):
+                out.append(" ")
+            elif cat.startswith("L") or cat.startswith("N"):
+                decomp = unicodedata.normalize("NFKD", c)
+                out.append("".join(d for d in decomp if ord(d) < 256))
+            else:
+                out.append("")
+    return "".join(out)
 
 
 class TextileReportPDF(FPDF):
@@ -176,8 +222,8 @@ def generate_pdf_report(
         raw_line = line.rstrip()
         stripped_line = raw_line.strip()
 
-        # Handle Markdown Code Block delimiters (```)
-        if stripped_line.startswith("```"):
+        # Handle Markdown Code Block delimiters (``` or ''')
+        if stripped_line.startswith("```") or stripped_line.startswith("'''"):
             in_code_block = not in_code_block
             if in_code_block:
                 pdf.ln(1.5)
@@ -198,7 +244,8 @@ def generate_pdf_report(
         # Check for un-fenced ASCII diagrams (lines containing box/flowchart symbols)
         is_diagram_line = (
             (stripped_line.startswith(("+", "|")) and ("|" in stripped_line or "-" in stripped_line or "+" in stripped_line))
-            or (stripped_line.startswith("[") and ("-->" in stripped_line or "->" in stripped_line or "|" in stripped_line or "]" in stripped_line and len(stripped_line) < 30))
+            or (stripped_line.startswith("[") and ("-->" in stripped_line or "->" in stripped_line or "|" in stripped_line or ("]" in stripped_line and len(stripped_line) < 35)))
+            or (stripped_line in ("v", "^", "|", "||", "+", "-"))
             or (stripped_line.startswith("v") and len(stripped_line) < 6)
             or (stripped_line.startswith("^") and len(stripped_line) < 6)
             or ("--->" in stripped_line or "----" in stripped_line and not stripped_line.startswith("---"))
