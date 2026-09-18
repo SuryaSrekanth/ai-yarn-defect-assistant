@@ -272,8 +272,17 @@ header[data-testid="stHeader"] [data-testid="stStatusWidget"] {
     background: #F6F1E4;
     border: 2px solid #2B2622;
 }
-.st-key-tag_card > div {
-    padding-left: 1.6rem;
+.st-key-tag_card [data-testid="stNumberInput"],
+.st-key-tag_card [data-testid="stSelectbox"] {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+}
+.st-key-tag_card label {
+    min-height: 2.2rem !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    margin-bottom: 0.35rem !important;
 }
 .st-key-tag_card label p {
     font-family: 'IBM Plex Mono', monospace !important;
@@ -282,6 +291,8 @@ header[data-testid="stHeader"] [data-testid="stStatusWidget"] {
     font-size: 0.75rem !important;
     color: #2E4057 !important;
     font-weight: 600 !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
 }
 .st-key-tag_card input {
     font-family: 'IBM Plex Mono', monospace !important;
@@ -605,9 +616,9 @@ with st.container(key="tag_card"):
         st.markdown('<div class="section-tag">DEFECT MEASUREMENT (PER 1,000 METERS)</div>', unsafe_allow_html=True)
         dc1, dc2, dc3 = st.columns(3)
         with dc1:
-            thick_val = st.number_input("Plied Thick Places / Slubs", min_value=0, value=16, step=1)
+            thick_val = st.number_input("Plied Thick (+50%)", min_value=0, value=16, step=1)
         with dc2:
-            thin_val = st.number_input("Thin Places / Dropped Ends", min_value=0, value=6, step=1)
+            thin_val = st.number_input("Plied Thin (-50%)", min_value=0, value=6, step=1)
         with dc3:
             snarls_val = st.number_input("Snarls / Twist Faults", min_value=0, value=4, step=1)
 
@@ -625,8 +636,8 @@ with st.container(key="tag_card"):
             ("Yarn Process", "Double / Plied Yarn (TFO)", "Manufacturing Type"),
             ("Resultant Plied Count", f"{res_str}", count_unit_val),
             ("Single Yarn Count", f"{single_count_val} ({plies_val}-ply)", count_unit_val),
-            ("Plied Thick / Slubs", f"{thick_val}", "per 1,000 m"),
-            ("Thin / Dropped Ends", f"{thin_val}", "per 1,000 m"),
+            ("Plied Thick (+50%)", f"{thick_val}", "per 1,000 m"),
+            ("Plied Thin (-50%)", f"{thin_val}", "per 1,000 m"),
             ("Snarls / Twist Faults", f"{snarls_val}", "per 1,000 m"),
         ]
 
@@ -646,7 +657,7 @@ with st.container(key="tag_card"):
         with dc2:
             thin_val = st.number_input("Thin Places (-50%)", min_value=0, value=10, step=1)
         with dc3:
-            neps_val = st.number_input("Neps (+200%)", min_value=0, value=30, step=1)
+            neps_val = st.number_input("Neps Count (+200%)", min_value=0, value=30, step=1)
         with dc4:
             trash_val = st.number_input("Trash / Dust Count", min_value=0, value=14, step=1)
 
