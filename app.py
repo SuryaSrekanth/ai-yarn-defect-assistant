@@ -1,18 +1,19 @@
-import importlib
 import os
 import random
 
 import pdf_generator
 import streamlit as st
 from dotenv import load_dotenv
-from google import genai
-
-importlib.reload(pdf_generator)
 from pdf_generator import generate_pdf_report
 
 load_dotenv()
 
 st.set_page_config(page_title="Yarn Inspection Desk", page_icon="🧵", layout="centered")
+
+@st.cache_resource(show_spinner=False)
+def get_genai_client(api_key: str):
+    from google import genai
+    return genai.Client(api_key=api_key)
 
 if "batch_no" not in st.session_state:
     st.session_state.batch_no = f"{random.randint(10, 99)}-{random.randint(100, 999)}"
@@ -21,11 +22,13 @@ if "inspection_data" not in st.session_state:
     st.session_state.inspection_data = None
 
 THEME_CSS = """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
 html, body, [class*="css"] {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .stApp {
@@ -788,7 +791,7 @@ if analyze:
         output_text = ""
         if api_key:
             try:
-                client = genai.Client(api_key=api_key)
+                client = get_genai_client(api_key)
                 interaction = client.interactions.create(
                     model="gemini-3.6-flash",
                     input=prompt,
@@ -812,6 +815,23 @@ if analyze:
             )
             output_text = generate_rule_based_analysis(clean_yarn_type, specs_data, machinery_data, defects_data)
 
+        # Pre-compile PDF once during analysis so subsequent renders are instantaneous
+        compiled_pdf_bytes = None
+        try:
+            compiled_pdf_bytes = generate_pdf_report(
+                batch_no=st.session_state.batch_no,
+                yarn_type=clean_yarn_type,
+                parameters=pdf_params,
+                ai_report_text=output_text,
+                yarn_count=main_count_val,
+                count_unit=main_count_unit,
+                thick_places=main_thick,
+                thin_places=main_thin,
+                neps=main_neps,
+            )
+        except Exception:
+            compiled_pdf_bytes = None
+
         st.session_state.inspection_data = {
             "batch_no": st.session_state.batch_no,
             "yarn_type": clean_yarn_type,
@@ -822,6 +842,7 @@ if analyze:
             "thin_places": main_thin,
             "neps": main_neps,
             "output_text": output_text,
+            "pdf_bytes": compiled_pdf_bytes,
         }
 
 if st.session_state.inspection_data:
@@ -830,20 +851,25 @@ if st.session_state.inspection_data:
         st.markdown('<div class="report-heading">Inspection Findings</div>', unsafe_allow_html=True)
         st.write(data["output_text"])
 
-    try:
-        importlib.reload(pdf_generator)
-        pdf_bytes = pdf_generator.generate_pdf_report(
-            batch_no=data["batch_no"],
-            yarn_type=data.get("yarn_type", "Single Yarn (Ring Spun)"),
-            parameters=data.get("parameters", []),
-            ai_report_text=data["output_text"],
-            yarn_count=data.get("yarn_count", 0.0),
-            count_unit=data.get("count_unit", "Ne"),
-            thick_places=data.get("thick_places", 0),
-            thin_places=data.get("thin_places", 0),
-            neps=data.get("neps", 0),
-        )
+    pdf_bytes = data.get("pdf_bytes")
+    if not pdf_bytes:
+        try:
+            pdf_bytes = generate_pdf_report(
+                batch_no=data["batch_no"],
+                yarn_type=data.get("yarn_type", "Single Yarn (Ring Spun)"),
+                parameters=data.get("parameters", []),
+                ai_report_text=data["output_text"],
+                yarn_count=data.get("yarn_count", 0.0),
+                count_unit=data.get("count_unit", "Ne"),
+                thick_places=data.get("thick_places", 0),
+                thin_places=data.get("thin_places", 0),
+                neps=data.get("neps", 0),
+            )
+            data["pdf_bytes"] = pdf_bytes
+        except Exception:
+            pdf_bytes = None
 
+    if pdf_bytes:
         st.markdown("<br>", unsafe_allow_html=True)
         st.download_button(
             label="📥 Download PDF Inspection Report",
@@ -852,7 +878,7 @@ if st.session_state.inspection_data:
             mime="application/pdf",
             use_container_width=True,
         )
-    except Exception:
+    else:
         st.markdown(
             """
             <div class="lab-error-card">
