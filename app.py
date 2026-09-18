@@ -259,7 +259,7 @@ header[data-testid="stHeader"] [data-testid="stStatusWidget"] {
     border-radius: 6px;
     padding: 1.2rem 1.4rem 0.6rem;
     position: relative;
-    transform: rotate(-0.3deg);
+    transform: none !important;
 }
 .st-key-tag_card::before {
     content: "";
@@ -294,6 +294,23 @@ header[data-testid="stHeader"] [data-testid="stStatusWidget"] {
     border: 1px solid #2B2622 !important;
     border-radius: 3px !important;
 }
+.st-key-tag_card [data-baseweb="select"] > div {
+    background-color: #F6F1E4 !important;
+    border: 1px solid #2B2622 !important;
+    border-radius: 3px !important;
+}
+.section-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #B5541E;
+    margin-top: 1rem;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px dashed rgba(181, 84, 30, 0.45);
+    padding-bottom: 3px;
+}
 
 div[data-testid="stButton"] button {
     font-family: 'Special Elite', monospace;
@@ -302,21 +319,21 @@ div[data-testid="stButton"] button {
     background-color: #B5541E;
     color: #F6F1E4;
     border: 2px solid #2B2622;
-    border-radius: 2px;
-    padding: 0.5rem 1.4rem;
+    border-radius: 4px;
+    padding: 0.55rem 1.4rem;
     box-shadow: 2px 3px 0 rgba(43,38,34,0.3);
+    transform: none !important;
+    white-space: nowrap !important;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 @media (prefers-reduced-motion: no-preference) {
-    div[data-testid="stButton"] button {
-        transform: rotate(-1.5deg);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
     div[data-testid="stButton"] button:hover {
-        transform: rotate(-1.5deg) scale(1.03);
-        box-shadow: 3px 4px 0 rgba(43,38,34,0.35);
+        background-color: #9C4314;
+        transform: translateY(-2px) !important;
+        box-shadow: 2px 5px 0 rgba(43,38,34,0.35);
     }
     div[data-testid="stButton"] button:active {
-        transform: rotate(0deg) scale(0.97);
+        transform: translateY(1px) !important;
         box-shadow: 1px 1px 0 rgba(43,38,34,0.3);
     }
 }
@@ -370,39 +387,146 @@ def stitch_divider():
     st.markdown('<div class="stitch-divider">' + " ✕" * 20 + "</div>", unsafe_allow_html=True)
 
 
-def generate_rule_based_analysis(yarn_count, count_unit, thick_places, thin_places, neps):
-    total_defects = thick_places + thin_places + neps
-
+def generate_rule_based_analysis(yarn_type: str, specs: dict, machinery: dict, defects: dict) -> str:
     causes = []
-    if thick_places > 35:
-        causes.append("- **High Thick Places**: Indicates damaged top roller cots, worn drafting aprons, or loose fly accumulating in the drafting zone.")
-    if thin_places > 25:
-        causes.append("- **High Thin Places**: Indicates incorrect traveler weight, excessive spinning tension, or irregular roving piecings.")
-    if neps > 45:
-        causes.append("- **High Nep Count**: Indicates worn carding wire clothing, improper carding gauge settings, or high trash content in raw cotton.")
-    if not causes:
-        causes.append("- **Normal Defect Range**: Metrics are within standard operational tolerances for this yarn count.")
+    notify = []
+    next_checks = []
 
-    notify = [
-        "- Spinning Shift Supervisor (Ring Frame section)",
-        "- Quality Assurance (QA) Laboratory Manager",
-        "- Carding & Preparatory Master (if Nep count is high)",
-    ]
+    if "Single" in yarn_type:
+        count_val = specs.get("count_val", 0.0)
+        count_unit = specs.get("count_unit", "Ne")
+        tm = machinery.get("twist_multiplier", 3.90)
+        traveler = machinery.get("ring_traveler", "ISO 28 (2/0)")
+        roving = machinery.get("roving_count", 1.20)
 
-    next_checks = [
-        "1. Run a Spectrogram / Uster Mass Diagram to detect periodic drafting faults.",
-        "2. Perform spindle-wise bobbin testing to isolate mechanical failures to specific spindles.",
-        "3. Check top roller cots for cuts, gouges, or oil contamination.",
-        "4. Inspect clearer rolls and pneumatic suction system for fly buildup.",
-    ]
+        thick = defects.get("thick_places", 0)
+        thin = defects.get("thin_places", 0)
+        neps = defects.get("neps", 0)
+        total_defects = thick + thin + neps
+
+        if thick > 35:
+            causes.append(f"- **Elevated Thick Places (+50% = {thick}/km)**: Indicates damaged or grooved top roller cots, worn/cracked drafting aprons, or loose lint/fly accumulating in the drafting zone and getting drafted into the yarn strand.")
+        if thin > 25:
+            causes.append(f"- **High Thin Places (-50% = {thin}/km)**: Indicates inappropriate ring traveler weight ({traveler}) causing excessive spinning tension, spindle eccentricity, or irregular roving piecings.")
+        if neps > 45:
+            causes.append(f"- **Excessive Neps (+200% = {neps}/km)**: Points to worn carding wire clothing, improper flat-to-cylinder gauge settings, or high seed-coat / immature fiber content in the raw cotton mix.")
+        if tm < 3.6:
+            causes.append(f"- **Low Twist Multiplier (alpha_e = {tm:.2f})**: Insufficient spinning twist reduces inter-fiber cohesion, promoting drafting slippage and drafting-wave thin spots.")
+        elif tm > 4.5:
+            causes.append(f"- **High Twist Multiplier (alpha_e = {tm:.2f})**: Excess spinning twist increases ring traveler thermal friction and induces torsional yarn liveliness.")
+        if not causes:
+            causes.append("- **Normal Defect Range**: All defect metrics are within standard commercial tolerances for this Ring Spun yarn count.")
+
+        notify = [
+            "- Ring Frame Spinning Shift Supervisor (Frame & Spindle inspection)",
+            "- QA / Physical Testing Laboratory Manager",
+            "- Carding & Preparatory Master (if Nep count is elevated)",
+            "- Maintenance Engineer (Roller cot buffing & apron replacement cycle)",
+        ]
+
+        next_checks = [
+            "1. Run a Spectrogram / Uster Mass Diagram to detect periodic drafting faults corresponding to top roller (7-8 cm wavelength) or apron (4-5 cm wavelength).",
+            f"2. Inspect Ring Travelers ({traveler}) on running spindles for yarn groove wear, bluing from thermal friction, or fiber fly jamming.",
+            "3. Inspect top roller cots for Shore hardness (standard 68-70 Shore A), cuts, gouges, or lubrication oil contamination.",
+            f"4. Verify roving count ({roving} Ne) uniformity (CVm%) and spacer size in the ring frame drafting zone.",
+        ]
+
+        title = f"# QUALITY ASSESSMENT & TROUBLESHOOTING REPORT: {count_val} {count_unit} RING SPUN SINGLE YARN"
+
+    elif "Double" in yarn_type or "Plied" in yarn_type:
+        res_str = specs.get("resultant_str", "")
+        single_count = specs.get("single_count", 40.0)
+        plies = specs.get("plies", 2)
+        count_unit = specs.get("count_unit", "Ne")
+        ply_tpm = machinery.get("ply_twist_tpm", 750)
+        twist_dir = machinery.get("twist_direction", "Z/S")
+        spindle_speed = machinery.get("tfo_spindle_speed", 9500)
+        splicer_str = machinery.get("splicer_strength", 85)
+        steam_cond = machinery.get("steam_conditioning", "Completed")
+
+        thick = defects.get("thick_places", 0)
+        thin = defects.get("thin_places", 0)
+        snarls = defects.get("snarls", 0)
+        total_defects = thick + thin + snarls
+
+        if snarls > 8:
+            causes.append(f"- **High Twist Liveliness / Snarling ({snarls}/km)**: Unbalanced ply twist ({ply_tpm} TPM) combined with inadequate or uneven steam conditioning ({steam_cond}). Residual torque causes spontaneous kinking during post-winding or weaving.")
+        if thin > 10:
+            causes.append(f"- **Thin Places / Dropped Single-Ply ({thin}/km)**: Single-end yarn breaks during doubling/assembly winding where the stop-motion detector failed to trip, resulting in dropped-ply sections in plied yarn.")
+        if thick > 18:
+            causes.append(f"- **Plied Slubs / Entrapped Tails ({thick}/km)**: Excessive pneumatic splicer tail length or loose fiber fly trapped inside the TFO spindle flyer or balloon pot.")
+        if splicer_str < 80:
+            causes.append(f"- **Sub-optimal Splicer Joint Strength ({splicer_str}%)**: Splicing chamber air pressure below specification (should be 5.5-6.5 bar) or dull yarn-cutting knives, causing weak splices prone to popping.")
+        if spindle_speed > 11500:
+            causes.append(f"- **High TFO Spindle Speed ({spindle_speed:,} RPM)**: Balloon tension surges exceeding yarn elastic limit, creating localized tension elongation faults.")
+        if not causes:
+            causes.append("- **Normal Defect Range**: Plied yarn metrics and twist parameters are well within standard industrial quality thresholds.")
+
+        notify = [
+            "- TFO Twisting Department In-Charge & Shift Supervisor",
+            "- Assembly Doubling / Winding Supervisor (check dropped-ply detectors)",
+            "- Autoclave Yarn Conditioning (YCP) Plant Operator",
+            "- QA Physical Testing Laboratory Head",
+        ]
+
+        next_checks = [
+            "1. Check Autoclave Steam Conditioning (YCP) recipe: ensure full vacuum (-0.85 bar) followed by saturated steam at 58-62°C for 35-45 minutes to set twist liveliness.",
+            "2. Inspect assembly doubler stop-motion sensors and ceramic yarn cutters to prevent single-ply runouts from feeding into TFO.",
+            "3. Test pneumatic air splicer joints on the pull-tester to ensure retained joint strength exceeds 85% with clean trimmed tails (<3mm).",
+            "4. Inspect TFO spindle ceramic flyers, capsule tension discs, and balloon rings for grooving or lint buildup.",
+        ]
+
+        title = f"# QUALITY ASSESSMENT & TROUBLESHOOTING REPORT: {res_str} TFO PLIED YARN"
+
+    else:  # Open-End Rotor
+        count_val = specs.get("count_val", 20.0)
+        count_unit = specs.get("count_unit", "Ne")
+        rotor_dia = machinery.get("rotor_dia", "32 mm")
+        rotor_speed = machinery.get("rotor_speed", 105000)
+        opening_speed = machinery.get("opening_roller_speed", 8000)
+        navel = machinery.get("navel_type", "Ceramic Spiral")
+
+        thick = defects.get("thick_places", 0)
+        thin = defects.get("thin_places", 0)
+        neps = defects.get("neps", 0)
+        trash = defects.get("trash_particles", 0)
+        total_defects = thick + thin + neps + trash
+
+        if trash > 20:
+            causes.append(f"- **Rotor Groove Micro-Dust Encrustation ({trash} trash/dust units)**: Ineffective trash extraction at opening roller or high micro-dust in sliver. Dust builds up in the rotor V-groove, displacing fibers and generating recurring periodic defects.")
+        if thick > 25:
+            causes.append(f"- **Rotor Slubs / Thick Places (+50% = {thick}/km)**: Seed coat fragment deposition in rotor collecting groove shedding intermittently, or uneven sliver delivery from drawframe.")
+        if thin > 18:
+            causes.append(f"- **Thin Places (-50% = {thin}/km)**: Localized fiber starvation caused by opening roller wire loading or intermittent delivery roller slippage.")
+        if neps > 40:
+            causes.append(f"- **High Rotor Neps (+200% = {neps}/km)**: Opening roller speed ({opening_speed:,} RPM) is overly aggressive for the fiber staple length, causing fiber damage/curling rather than clean individualization.")
+        causes.append(f"- **Navel & Rotor Aerodynamics**: Using {navel} with {rotor_dia} rotor at {rotor_speed:,} RPM. Worn ceramic navel grooves increase wrapper fibers and surface roughness.")
+        if not causes:
+            causes.append("- **Normal Defect Range**: Defect counts and rotor spinning metrics are within normal benchmark tolerances for OE yarn.")
+
+        notify = [
+            "- OE Rotor Spinning Section Shift Supervisor",
+            "- Carding & Blowroom Department (Trash & dust extraction efficiency)",
+            "- Spinning Maintenance Team (Rotor cup & navel cleaning / replacement team)",
+            "- Quality Assurance Laboratory Manager",
+        ]
+
+        next_checks = [
+            f"1. Stop selected spin-box positions and inspect the rotor groove under a 10x illuminated magnifier for trash crusting; clean or replace {rotor_dia} rotor cups.",
+            f"2. Inspect ceramic navel ({navel}) for ceramic glaze wear, chipped inserts, or groove scoring.",
+            "3. Verify opening roller wire tooth sharpness and check trash extraction chute pneumatic suction pressure (>700 Pa).",
+            "4. Verify drawframe sliver evenness (U% and CVm%) and check feeding condenser alignment.",
+        ]
+
+        title = f"# QUALITY ASSESSMENT & TROUBLESHOOTING REPORT: {count_val} {count_unit} OPEN-END (ROTOR) YARN"
 
     return (
-        f"# QUALITY ASSESSMENT FOR {yarn_count} {count_unit} YARN\n"
+        f"{title}\n"
         f"**Summary**: Total defect index is **{total_defects}** per 1,000m. "
-        f"({'High defect density detected requiring machine inspection.' if total_defects > 80 else 'Yarn quality is within operational limits.'})\n\n"
-        f"## 1. POSSIBLE CAUSES\n" + "\n".join(causes) + "\n\n"
+        f"({'High defect density detected requiring immediate machine inspection.' if total_defects > 70 else 'Defect profile is within standard operational tolerances.'})\n\n"
+        f"## 1. POSSIBLE CAUSES & ROOT MECHANISMS\n" + "\n".join(causes) + "\n\n"
         f"## 2. WHO TO NOTIFY\n" + "\n".join(notify) + "\n\n"
-        f"## 3. WHAT TO CHECK NEXT\n" + "\n".join(next_checks)
+        f"## 3. WHAT TO CHECK NEXT ON THE SHOP FLOOR\n" + "\n".join(next_checks)
     )
 
 
@@ -418,17 +542,205 @@ st.markdown(
 
 with st.container(key="tag_card"):
     st.markdown("**Measurement Slip**")
-    col1, col2 = st.columns(2)
-    with col1:
-        yarn_count_value = st.number_input("Yarn count", min_value=0.0, value=0.0)
-    with col2:
-        yarn_count_unit = st.selectbox("Count system", ["Ne", "Tex", "Nm", "Denier"])
 
-    thick_places = st.number_input("Thick places", min_value=0, value=0)
-    thin_places = st.number_input("Thin places", min_value=0, value=0)
-    neps = st.number_input("Neps", min_value=0, value=0)
+    yarn_type_selected = st.selectbox(
+        "Yarn Manufacturing Process",
+        [
+            "🧵 Single Yarn (Ring Spun / Combed / Carded)",
+            "🪢 Double / Plied Yarn (TFO - Two-For-One Twisted)",
+            "🌀 Open-End Yarn (OE / Rotor Spun)",
+        ],
+        index=0,
+    )
 
-    btn_col1, btn_col2 = st.columns([3, 1])
+    specs_data = {}
+    machinery_data = {}
+    defects_data = {}
+    pdf_params = []
+    main_count_val = 0.0
+    main_count_unit = "Ne"
+    main_thick = 0
+    main_thin = 0
+    main_neps = 0
+    clean_yarn_type = ""
+
+    if "Single" in yarn_type_selected:
+        clean_yarn_type = "Single Yarn (Ring Spun)"
+        st.markdown('<div class="section-tag">YARN SPECIFICATIONS</div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            yarn_count_val = st.number_input("Yarn Count", min_value=1.0, max_value=200.0, value=30.0, step=1.0)
+        with col2:
+            count_unit_val = st.selectbox("Count System", ["Ne", "Tex", "Nm", "Denier"])
+
+        st.markdown('<div class="section-tag">RING SPINNING MACHINERY METRICS</div>', unsafe_allow_html=True)
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1:
+            twist_mult = st.number_input("Twist Multiplier (αe / TM)", min_value=2.0, max_value=7.0, value=3.90, step=0.05, format="%.2f")
+        with mc2:
+            traveler_val = st.selectbox("Ring Traveler Size/No.", ["ISO 25 (3/0)", "ISO 28 (2/0)", "ISO 31.5 (1/0)", "ISO 35.5 (1)", "ISO 40 (2)", "ISO 45 (3)", "ISO 50 (4)"])
+        with mc3:
+            roving_val = st.number_input("Roving Count (Ne)", min_value=0.2, max_value=5.0, value=1.20, step=0.05, format="%.2f")
+
+        st.markdown('<div class="section-tag">DEFECT MEASUREMENT (PER 1,000 METERS)</div>', unsafe_allow_html=True)
+        dc1, dc2, dc3 = st.columns(3)
+        with dc1:
+            thick_val = st.number_input("Thick Places (+50%)", min_value=0, value=25, step=1)
+        with dc2:
+            thin_val = st.number_input("Thin Places (-50%)", min_value=0, value=15, step=1)
+        with dc3:
+            neps_val = st.number_input("Neps (+200%)", min_value=0, value=40, step=1)
+
+        main_count_val = float(yarn_count_val)
+        main_count_unit = count_unit_val
+        main_thick = thick_val
+        main_thin = thin_val
+        main_neps = neps_val
+
+        specs_data = {"count_val": yarn_count_val, "count_unit": count_unit_val}
+        machinery_data = {"twist_multiplier": twist_mult, "ring_traveler": traveler_val, "roving_count": roving_val}
+        defects_data = {"thick_places": thick_val, "thin_places": thin_val, "neps": neps_val}
+
+        pdf_params = [
+            ("Yarn Process", "Single Yarn (Ring Spun)", "Manufacturing Type"),
+            ("Yarn Count", f"{yarn_count_val}", count_unit_val),
+            ("Twist Multiplier (αe)", f"{twist_mult:.2f}", "TM"),
+            ("Ring Traveler", f"{traveler_val}", "Traveler No."),
+            ("Roving Count", f"{roving_val:.2f}", "Ne"),
+            ("Thick Places (+50%)", f"{thick_val}", "per 1,000 m"),
+            ("Thin Places (-50%)", f"{thin_val}", "per 1,000 m"),
+            ("Neps Count (+200%)", f"{neps_val}", "per 1,000 m"),
+        ]
+
+    elif "Double" in yarn_type_selected:
+        clean_yarn_type = "Double / Plied Yarn (TFO)"
+        st.markdown('<div class="section-tag">PLIED YARN SPECIFICATIONS</div>', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            single_count_val = st.number_input("Single Yarn Count", min_value=1.0, max_value=200.0, value=40.0, step=1.0)
+        with col2:
+            plies_val = st.selectbox("Number of Plies", [2, 3, 4], format_func=lambda x: f"{x}-Ply (Folded)")
+        with col3:
+            count_unit_val = st.selectbox("Count System", ["Ne", "Tex", "Nm", "Denier"])
+
+        if "Ne" in count_unit_val:
+            res_str = f"{plies_val}/{int(single_count_val) if single_count_val.is_integer() else single_count_val} Ne (equiv. {single_count_val/plies_val:.1f} Ne)"
+            calc_count = round(single_count_val / plies_val, 2)
+        elif "Tex" in count_unit_val:
+            res_str = f"{single_count_val * plies_val:.1f} Tex (from {single_count_val} Tex x {plies_val})"
+            calc_count = round(single_count_val * plies_val, 2)
+        else:
+            res_str = f"{plies_val}/{single_count_val} {count_unit_val}"
+            calc_count = round(single_count_val / plies_val, 2)
+
+        st.caption(f"🧵 Resultant Plied Count: **{res_str}**")
+
+        st.markdown('<div class="section-tag">TFO MACHINERY & PROCESS METRICS</div>', unsafe_allow_html=True)
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1:
+            ply_tpm_val = st.number_input("Ply Twist (TPM)", min_value=50, max_value=2500, value=750, step=25)
+        with mc2:
+            twist_dir_val = st.selectbox("Twist Configuration", ["Z/S (Z-single / S-ply)", "S/Z (S-single / Z-ply)", "Z/Z (Cable / Crepe)", "S/S (Special)"])
+        with mc3:
+            spindle_speed_val = st.number_input("TFO Spindle Speed (RPM)", min_value=2000, max_value=16000, value=9500, step=250)
+
+        mc4, mc5 = st.columns(2)
+        with mc4:
+            splicer_str_val = st.slider("Air Splicer Joint Strength (% parent yarn)", min_value=50, max_value=100, value=85, step=1)
+        with mc5:
+            steam_cond_val = st.selectbox("Steam Conditioning (YCP)", ["Completed (55°C - 65°C)", "Pending / Unsteamed", "Over-conditioned"])
+
+        st.markdown('<div class="section-tag">DEFECT MEASUREMENT (PER 1,000 METERS)</div>', unsafe_allow_html=True)
+        dc1, dc2, dc3 = st.columns(3)
+        with dc1:
+            thick_val = st.number_input("Plied Thick Places / Slubs", min_value=0, value=16, step=1)
+        with dc2:
+            thin_val = st.number_input("Thin Places / Dropped Ends", min_value=0, value=6, step=1)
+        with dc3:
+            snarls_val = st.number_input("Snarls / Twist Faults", min_value=0, value=4, step=1)
+
+        main_count_val = float(calc_count)
+        main_count_unit = count_unit_val
+        main_thick = thick_val
+        main_thin = thin_val
+        main_neps = snarls_val
+
+        specs_data = {"single_count": single_count_val, "plies": plies_val, "count_unit": count_unit_val, "resultant_str": res_str, "calc_res_count": calc_count}
+        machinery_data = {"ply_twist_tpm": ply_tpm_val, "twist_direction": twist_dir_val, "tfo_spindle_speed": spindle_speed_val, "splicer_strength": splicer_str_val, "steam_conditioning": steam_cond_val}
+        defects_data = {"thick_places": thick_val, "thin_places": thin_val, "snarls": snarls_val}
+
+        pdf_params = [
+            ("Yarn Process", "Double / Plied Yarn (TFO)", "Manufacturing Type"),
+            ("Resultant Plied Count", f"{res_str}", count_unit_val),
+            ("Single Yarn Count", f"{single_count_val} ({plies_val}-ply)", count_unit_val),
+            ("Ply Twist (TPM)", f"{ply_tpm_val}", "Turns/Meter"),
+            ("Twist Configuration", f"{twist_dir_val}", "S/Z Direction"),
+            ("TFO Spindle Speed", f"{spindle_speed_val:,}", "RPM"),
+            ("Air Splicer Strength", f"{splicer_str_val}%", "Retained Strength"),
+            ("Steam Conditioning", f"{steam_cond_val}", "YCP Autoclave"),
+            ("Plied Thick / Slubs", f"{thick_val}", "per 1,000 m"),
+            ("Thin / Dropped Ends", f"{thin_val}", "per 1,000 m"),
+            ("Snarls / Twist Faults", f"{snarls_val}", "per 1,000 m"),
+        ]
+
+    else:  # Open-End Rotor
+        clean_yarn_type = "Open-End Yarn (OE / Rotor)"
+        st.markdown('<div class="section-tag">OE ROTOR YARN SPECIFICATIONS</div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            yarn_count_val = st.number_input("OE Yarn Count", min_value=4.0, max_value=80.0, value=20.0, step=1.0)
+        with col2:
+            count_unit_val = st.selectbox("Count System", ["Ne", "Tex", "Nm", "Denier"])
+
+        st.markdown('<div class="section-tag">ROTOR SPINNING MACHINERY METRICS</div>', unsafe_allow_html=True)
+        mc1, mc2 = st.columns(2)
+        with mc1:
+            rotor_dia_val = st.selectbox("Rotor Cup Diameter", ["28 mm", "32 mm", "36 mm", "40 mm", "46 mm"], index=1)
+        with mc2:
+            rotor_speed_val = st.number_input("Rotor Speed (RPM)", min_value=30000, max_value=160000, value=105000, step=2500)
+
+        mc3, mc4 = st.columns(2)
+        with mc3:
+            opening_speed_val = st.number_input("Opening Roller Speed (RPM)", min_value=4000, max_value=12000, value=8000, step=250)
+        with mc4:
+            navel_val = st.selectbox("Navel Type", ["Ceramic Spiral (4 Grooves)", "Ceramic Spiral (8 Grooves)", "Smooth Ceramic", "Fluted Steel", "Torque-Stop Ceramic"])
+
+        st.markdown('<div class="section-tag">DEFECT MEASUREMENT (PER 1,000 METERS)</div>', unsafe_allow_html=True)
+        dc1, dc2, dc3, dc4 = st.columns(4)
+        with dc1:
+            thick_val = st.number_input("Thick Places (+50%)", min_value=0, value=18, step=1)
+        with dc2:
+            thin_val = st.number_input("Thin Places (-50%)", min_value=0, value=10, step=1)
+        with dc3:
+            neps_val = st.number_input("Neps (+200%)", min_value=0, value=30, step=1)
+        with dc4:
+            trash_val = st.number_input("Trash / Dust Count", min_value=0, value=14, step=1)
+
+        main_count_val = float(yarn_count_val)
+        main_count_unit = count_unit_val
+        main_thick = thick_val
+        main_thin = thin_val
+        main_neps = neps_val
+
+        specs_data = {"count_val": yarn_count_val, "count_unit": count_unit_val}
+        machinery_data = {"rotor_dia": rotor_dia_val, "rotor_speed": rotor_speed_val, "opening_roller_speed": opening_speed_val, "navel_type": navel_val}
+        defects_data = {"thick_places": thick_val, "thin_places": thin_val, "neps": neps_val, "trash_particles": trash_val}
+
+        pdf_params = [
+            ("Yarn Process", "Open-End Yarn (OE / Rotor)", "Manufacturing Type"),
+            ("OE Yarn Count", f"{yarn_count_val}", count_unit_val),
+            ("Rotor Diameter", f"{rotor_dia_val}", "mm"),
+            ("Rotor Speed", f"{rotor_speed_val:,}", "RPM"),
+            ("Opening Roller Speed", f"{opening_speed_val:,}", "RPM"),
+            ("Navel Type", f"{navel_val}", "Insert Spec"),
+            ("Thick Places (+50%)", f"{thick_val}", "per 1,000 m"),
+            ("Thin Places (-50%)", f"{thin_val}", "per 1,000 m"),
+            ("Neps Count (+200%)", f"{neps_val}", "per 1,000 m"),
+            ("Trash / Dust Particles", f"{trash_val}", "per 1,000 m"),
+        ]
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    btn_col1, btn_col2 = st.columns([2.5, 1.2])
     with btn_col1:
         analyze = st.button("Analyze", use_container_width=True)
     with btn_col2:
@@ -440,7 +752,7 @@ with st.container(key="tag_card"):
 stitch_divider()
 
 if analyze:
-    if yarn_count_value <= 0.0:
+    if main_count_val <= 0.0:
         st.markdown(
             """
             <div class="lab-error-card">
@@ -451,22 +763,76 @@ if analyze:
             unsafe_allow_html=True,
         )
     else:
-        prompt = (
-            "You are a textile quality control expert reviewing a yarn testing report.\n"
-            f"Yarn count: {yarn_count_value} {yarn_count_unit}\n"
-            f"Thick places: {thick_places}\n"
-            f"Thin places: {thin_places}\n"
-            f"Neps: {neps}\n\n"
-            "Acceptable defect levels vary a lot by yarn count (finer yarns typically tolerate "
-            "fewer defects per km than coarser yarns), so factor the given count and its unit "
-            "into your judgment of whether these numbers are actually high, normal, or low for "
-            "this yarn, before explaining causes.\n\n"
-            "Based on these defect counts, explain in plain language:\n"
-            "1. Possible causes (e.g. carding issues, drafting tension, raw material contamination)\n"
-            "2. Who should be notified (which department/role)\n"
-            "3. What should be checked next\n"
-            "Keep it concise and practical for a lab technician."
-        )
+        if "Single" in yarn_type_selected:
+            prompt = (
+                "You are a textile spinning quality control expert and laboratory technologist reviewing a Ring Spun yarn inspection slip.\n"
+                f"Yarn Process: Single Yarn (Ring Spun / Combed / Carded)\n"
+                f"Yarn Count: {specs_data['count_val']} {specs_data['count_unit']}\n"
+                f"Twist Multiplier (alpha_e / TM): {machinery_data['twist_multiplier']:.2f}\n"
+                f"Ring Traveler: {machinery_data['ring_traveler']}\n"
+                f"Roving Count: {machinery_data['roving_count']:.2f} Ne\n"
+                f"Thick Places (+50%): {defects_data['thick_places']} per 1,000m\n"
+                f"Thin Places (-50%): {defects_data['thin_places']} per 1,000m\n"
+                f"Neps (+200%): {defects_data['neps']} per 1,000m\n\n"
+                "Diagnostic Focus Mandate:\n"
+                "- Ring traveler wear, frictional thermal bluing, traveler weight calibration for count\n"
+                "- Top roller cot cuts/gouges, apron cracking, drafting cradle tension\n"
+                "- Roving piecing slubs, roving count CV%, and drafting zone fly accumulation\n\n"
+                "Provide a concise, practical troubleshooting report for a spinning mill technician:\n"
+                "1. Quality evaluation (explain if these levels are normal/high for this count)\n"
+                "2. Root causes specific to ring spinning machinery and preparatory sliver\n"
+                "3. Who to notify (specific roles/sections)\n"
+                "4. Immediate maintenance & check steps on the shop floor"
+            )
+        elif "Double" in yarn_type_selected:
+            prompt = (
+                "You are a textile twisting quality control expert and laboratory technologist reviewing a TFO (Two-For-One) plied yarn inspection slip.\n"
+                f"Yarn Process: Double / Plied Yarn (TFO Folded)\n"
+                f"Resultant Plied Count: {specs_data['resultant_str']}\n"
+                f"Single Count: {specs_data['single_count']} {specs_data['count_unit']} ({specs_data['plies']}-ply)\n"
+                f"Ply Twist TPM: {machinery_data['ply_twist_tpm']} Turns/Meter\n"
+                f"Twist Direction: {machinery_data['twist_direction']}\n"
+                f"TFO Spindle Speed: {machinery_data['tfo_spindle_speed']:,} RPM\n"
+                f"Air Splicer Joint Strength: {machinery_data['splicer_strength']}%\n"
+                f"Steam Conditioning Status: {machinery_data['steam_conditioning']}\n"
+                f"Plied Thick Places / Slubs: {defects_data['thick_places']} per 1,000m\n"
+                f"Thin Places / Dropped Ends: {defects_data['thin_places']} per 1,000m\n"
+                f"Snarls / Twist Faults: {defects_data['snarls']} per 1,000m\n\n"
+                "Diagnostic Focus Mandate:\n"
+                "- Single end breaks (dropped-ply defects) in assembly winding\n"
+                "- Twist liveliness, snarling, torque balance, and autoclave steam conditioning cycle (YCP)\n"
+                "- Air splicer tail length, splice retention strength, and joint knotting\n"
+                "- TFO tension capsule friction, ceramic flyer wear, and balloon stability\n\n"
+                "Provide a concise, practical troubleshooting report for a twisting mill technician:\n"
+                "1. Quality evaluation (torque balance, plied defects)\n"
+                "2. Root causes specific to TFO twisting, assembly winding, and conditioning\n"
+                "3. Who to notify (specific roles/sections)\n"
+                "4. Immediate corrective checks on the twisting floor"
+            )
+        else:
+            prompt = (
+                "You are a textile rotor spinning quality control expert and laboratory technologist reviewing an Open-End (OE) yarn inspection slip.\n"
+                f"Yarn Process: Open-End Yarn (OE / Rotor Spun)\n"
+                f"Yarn Count: {specs_data['count_val']} {specs_data['count_unit']}\n"
+                f"Rotor Diameter: {machinery_data['rotor_dia']}\n"
+                f"Rotor Speed: {machinery_data['rotor_speed']:,} RPM\n"
+                f"Opening Roller Speed: {machinery_data['opening_roller_speed']:,} RPM\n"
+                f"Navel Type: {machinery_data['navel_type']}\n"
+                f"Thick Places (+50%): {defects_data['thick_places']} per 1,000m\n"
+                f"Thin Places (-50%): {defects_data['thin_places']} per 1,000m\n"
+                f"Neps (+200%): {defects_data['neps']} per 1,000m\n"
+                f"Trash / Dust Particles: {defects_data['trash_particles']} per 1,000m\n\n"
+                "Diagnostic Focus Mandate:\n"
+                "- Rotor V-groove micro-dust and trash buildup leading to recurring slubs\n"
+                "- Wrapper fibers and corkscrew defects caused by navel wear or incorrect groove geometry\n"
+                "- Opening roller wire wear or excessive combing speed causing fiber damage/neps\n"
+                "- Trash extraction suction pressure and sliver preparation quality\n\n"
+                "Provide a concise, practical troubleshooting report for an OE spinning technician:\n"
+                "1. Quality evaluation (rotor yarn structure, dust influence)\n"
+                "2. Root causes specific to rotor spin-box, navel, opening roller, and sliver\n"
+                "3. Who to notify (specific roles/sections)\n"
+                "4. Immediate maintenance & check steps on the rotor floor"
+            )
 
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         loader = st.empty()
@@ -512,15 +878,17 @@ if analyze:
                 """,
                 unsafe_allow_html=True,
             )
-            output_text = generate_rule_based_analysis(yarn_count_value, yarn_count_unit, thick_places, thin_places, neps)
+            output_text = generate_rule_based_analysis(clean_yarn_type, specs_data, machinery_data, defects_data)
 
         st.session_state.inspection_data = {
             "batch_no": st.session_state.batch_no,
-            "yarn_count": yarn_count_value,
-            "count_unit": yarn_count_unit,
-            "thick_places": thick_places,
-            "thin_places": thin_places,
-            "neps": neps,
+            "yarn_type": clean_yarn_type,
+            "parameters": pdf_params,
+            "yarn_count": main_count_val,
+            "count_unit": main_count_unit,
+            "thick_places": main_thick,
+            "thin_places": main_thin,
+            "neps": main_neps,
             "output_text": output_text,
         }
 
@@ -534,12 +902,14 @@ if st.session_state.inspection_data:
         importlib.reload(pdf_generator)
         pdf_bytes = pdf_generator.generate_pdf_report(
             batch_no=data["batch_no"],
-            yarn_count=data["yarn_count"],
-            count_unit=data["count_unit"],
-            thick_places=data["thick_places"],
-            thin_places=data["thin_places"],
-            neps=data["neps"],
+            yarn_type=data.get("yarn_type", "Single Yarn (Ring Spun)"),
+            parameters=data.get("parameters", []),
             ai_report_text=data["output_text"],
+            yarn_count=data.get("yarn_count", 0.0),
+            count_unit=data.get("count_unit", "Ne"),
+            thick_places=data.get("thick_places", 0),
+            thin_places=data.get("thin_places", 0),
+            neps=data.get("neps", 0),
         )
 
         st.markdown("<br>", unsafe_allow_html=True)

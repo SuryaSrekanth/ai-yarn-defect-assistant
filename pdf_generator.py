@@ -10,10 +10,27 @@ def sanitize_text(text: str) -> str:
         "\u2019": "'",  # right single quote
         "\u201c": '"',  # left double quote
         "\u201d": '"',  # right double quote
-        "\u2026": "...", # ellipsis
+        "\u2026": "...",  # ellipsis
         "\u2022": "-",  # bullet point
         "\u00a0": " ",  # non-breaking space
-        "·": "-",       # middle dot
+        "·": "-",  # middle dot
+        "α": "alpha",
+        "β": "beta",
+        "±": "+/-",
+        "≥": ">=",
+        "≤": "<=",
+        "×": "x",
+        "°": " deg",
+        "🧵": "",
+        "📊": "",
+        "💬": "",
+        "⚠️": "",
+        "📥": "",
+        "🔄": "",
+        "🟢": "",
+        "🔵": "",
+        "🟡": "",
+        "🔴": "",
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
@@ -60,14 +77,17 @@ class TextileReportPDF(FPDF):
 
 def generate_pdf_report(
     batch_no: str,
-    yarn_count: float,
-    count_unit: str,
-    thick_places: int,
-    thin_places: int,
-    neps: int,
-    ai_report_text: str,
+    yarn_type: str = "Single Yarn (Ring Spun)",
+    parameters: list = None,
+    ai_report_text: str = "",
+    yarn_count: float = 0.0,
+    count_unit: str = "Ne",
+    thick_places: int = 0,
+    thin_places: int = 0,
+    neps: int = 0,
 ) -> bytes:
     batch_no = sanitize_text(str(batch_no))
+    yarn_type = sanitize_text(str(yarn_type))
     count_unit = sanitize_text(str(count_unit))
     ai_report_text = sanitize_text(str(ai_report_text))
 
@@ -81,7 +101,7 @@ def generate_pdf_report(
     # Batch & Inspection Info Card
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(46, 64, 87)
-    pdf.cell(0, 6, f"BATCH NO: {batch_no}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, f"BATCH NO: {batch_no}  |  YARN TYPE: {yarn_type.upper()}", new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(80, 80, 80)
@@ -92,24 +112,29 @@ def generate_pdf_report(
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(46, 64, 87)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(55, 7, "Parameter", border=1, fill=True, align="C")
-    pdf.cell(45, 7, "Measured Value", border=1, fill=True, align="C")
-    pdf.cell(90, 7, "Unit / Reference Standard", border=1, fill=True, align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(60, 7, "Parameter / Metric", border=1, fill=True, align="C")
+    pdf.cell(50, 7, "Recorded Value", border=1, fill=True, align="C")
+    pdf.cell(80, 7, "Unit / Standard", border=1, fill=True, align="C", new_x="LMARGIN", new_y="NEXT")
 
     # Table Content
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(43, 38, 34)
-    rows = [
-        ("Yarn Count", f"{yarn_count}", count_unit),
-        ("Thick Places (+50%)", f"{thick_places}", "per 1,000 m"),
-        ("Thin Places (-50%)", f"{thin_places}", "per 1,000 m"),
-        ("Neps Count (+200%)", f"{neps}", "per 1,000 m"),
-    ]
 
-    for param, val, note in rows:
-        pdf.cell(55, 6, f"  {param}", border=1)
-        pdf.cell(45, 6, f"  {val}", border=1, align="C")
-        pdf.cell(90, 6, f"  {note}", border=1, new_x="LMARGIN", new_y="NEXT")
+    if not parameters:
+        rows = [
+            ("Yarn Count", f"{yarn_count}", count_unit),
+            ("Thick Places (+50%)", f"{thick_places}", "per 1,000 m"),
+            ("Thin Places (-50%)", f"{thin_places}", "per 1,000 m"),
+            ("Neps Count (+200%)", f"{neps}", "per 1,000 m"),
+        ]
+    else:
+        rows = parameters
+
+    for item in rows:
+        param, val, note = sanitize_text(str(item[0])), sanitize_text(str(item[1])), sanitize_text(str(item[2]))
+        pdf.cell(60, 6, f"  {param}", border=1)
+        pdf.cell(50, 6, f"  {val}", border=1, align="C")
+        pdf.cell(80, 6, f"  {note}", border=1, new_x="LMARGIN", new_y="NEXT")
 
     pdf.ln(6)
 
