@@ -362,6 +362,15 @@ div[data-testid="stButton"] button:focus-visible {
     border-left: 6px solid #2E4057;
     padding: 0.8rem 1.2rem;
 }
+.st-key-report_card pre, .st-key-report_card code {
+    background-color: #EDE4D3 !important;
+    border: 1px solid #2E4057 !important;
+    border-left: 4px solid #B5541E !important;
+    color: #2B2622 !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    border-radius: 4px !important;
+    padding: 0.5rem !important;
+}
 .report-heading {
     font-family: 'Special Elite', monospace;
     color: #B5541E;
@@ -724,7 +733,7 @@ if analyze:
                 "2. Root causes specific to ring spinning machinery and preparatory sliver\n"
                 "3. Who to notify (specific roles/sections)\n"
                 "4. Immediate maintenance & check steps on the shop floor\n\n"
-                "Formatting Guideline: If you include any schematic or flow diagram, enclose it inside a standard markdown code block (``` ... ```) using simple ASCII characters (+, -, |, -->) and keep line widths under 55 characters so it formats crisply in PDF laboratory reports."
+                "Formatting Guideline: For Section 2 (Root Cause Analysis), present a clear, professional process flow using clean arrow notation (e.g. [Sliver Feed] --> [Drafting Zone] --> [Ring Traveler] --> [Yarn Package]), followed by structured component diagnostic checks (component, defect mechanism, check tolerance). If including a markdown code block (``` ... ```), use simple ASCII characters (+, -, |, -->) and keep line widths under 50 characters."
             )
         elif "Double" in yarn_type_selected:
             prompt = (
@@ -745,7 +754,7 @@ if analyze:
                 "2. Root causes specific to TFO twisting, assembly winding, and conditioning\n"
                 "3. Who to notify (specific roles/sections)\n"
                 "4. Immediate corrective checks on the twisting floor\n\n"
-                "Formatting Guideline: If you include any schematic or flow diagram, enclose it inside a standard markdown code block (``` ... ```) using simple ASCII characters (+, -, |, -->) and keep line widths under 55 characters so it formats crisply in PDF laboratory reports."
+                "Formatting Guideline: For Section 2 (Root Cause Analysis), present a clear, professional process flow using clean arrow notation (e.g. [Assembly Package] --> [TFO Spindle / Flyer] --> [Balloon Pot] --> [Conditioning / YCP]), followed by structured component diagnostic checks (component, defect mechanism, check tolerance). If including a markdown code block (``` ... ```), use simple ASCII characters (+, -, |, -->) and keep line widths under 50 characters."
             )
         else:
             prompt = (
@@ -766,7 +775,7 @@ if analyze:
                 "2. Root causes specific to rotor spin-box, navel, opening roller, and sliver\n"
                 "3. Who to notify (specific roles/sections)\n"
                 "4. Immediate maintenance & check steps on the rotor floor\n\n"
-                "Formatting Guideline: If you include any schematic or flow diagram, enclose it inside a standard markdown code block (``` ... ```) using simple ASCII characters (+, -, |, -->) and keep line widths under 55 characters so it formats crisply in PDF laboratory reports."
+                "Formatting Guideline: For Section 2 (Root Cause Analysis), present a clear, professional process flow using clean arrow notation (e.g. [Sliver Feed] --> [Opening Roller] --> [Trash Chute] --> [Rotor Groove] --> [Navel / Delivery]), followed by structured component diagnostic checks (component, defect mechanism, check tolerance). If including a markdown code block (``` ... ```), use simple ASCII characters (+, -, |, -->) and keep line widths under 50 characters."
             )
 
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()

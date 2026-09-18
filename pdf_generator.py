@@ -212,80 +212,146 @@ def generate_pdf_report(
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(4)
 
-    # Parse and format AI markdown text into clean PDF text
-    pdf.set_font("Helvetica", "", 9.5)
-    pdf.set_text_color(30, 30, 30)
+    def parse_markdown_blocks(raw_text: str):
+        raw_lines = raw_text.split("\n")
+        blocks = []
+        i = 0
+        while i < len(raw_lines):
+            line = raw_lines[i]
+            stripped = line.strip()
 
-    in_code_block = False
-    lines = ai_report_text.split("\n")
-    for line in lines:
-        raw_line = line.rstrip()
-        stripped_line = raw_line.strip()
+            # Markdown Code Block delimiters (``` or ''')
+            if stripped.startswith("```") or stripped.startswith("'''"):
+                code_lines = []
+                i += 1
+                while i < len(raw_lines):
+                    c_line = raw_lines[i]
+                    c_stripped = c_line.strip()
+                    if c_stripped.startswith("```") or c_stripped.startswith("'''"):
+                        i += 1
+                        break
+                    code_lines.append(c_line.rstrip())
+                    i += 1
+                blocks.append(("code_block", code_lines))
+                continue
 
-        # Handle Markdown Code Block delimiters (``` or ''')
-        if stripped_line.startswith("```") or stripped_line.startswith("'''"):
-            in_code_block = not in_code_block
-            if in_code_block:
-                pdf.ln(1.5)
-            else:
-                pdf.ln(1.5)
-                pdf.set_font("Helvetica", "", 9.5)
-                pdf.set_text_color(30, 30, 30)
-            continue
+            # Check for un-fenced ASCII diagram block
+            is_diag = (
+                (stripped.startswith(("+", "|")) and ("|" in stripped or "-" in stripped or "+" in stripped))
+                or (stripped.startswith("[") and ("-->" in stripped or "->" in stripped or "|" in stripped or ("]" in stripped and len(stripped) < 35)))
+                or (stripped in ("v", "^", "|", "||", "+", "-"))
+                or (stripped.startswith("v") and len(stripped) < 6)
+                or (stripped.startswith("^") and len(stripped) < 6)
+                or ("--->" in stripped or "----" in stripped and not stripped.startswith("---"))
+            )
+            if is_diag:
+                diag_lines = []
+                while i < len(raw_lines):
+                    d_line = raw_lines[i]
+                    d_stripped = d_line.strip()
+                    if not d_stripped:
+                        break
+                    if d_stripped.startswith("#") or (len(d_stripped) > 2 and d_stripped[0:2].isdigit() and d_stripped[1] in (".", ")")):
+                        break
+                    diag_lines.append(d_line.rstrip())
+                    i += 1
+                blocks.append(("code_block", diag_lines))
+                continue
 
-        # If inside a code block (e.g. ASCII diagram / schematic)
-        if in_code_block:
-            clean_diagram_line = sanitize_text(raw_line)
+            if not stripped or stripped.startswith("---"):
+                blocks.append(("spacer", ""))
+                i += 1
+                continue
+
+            if stripped.startswith("#"):
+                clean = stripped.lstrip("# ").replace("**", "").replace("*", "").strip()
+                blocks.append(("heading", clean))
+                i += 1
+                continue
+
+            if stripped.startswith("**") or (len(stripped) > 2 and stripped[0:2].isdigit() and stripped[1] in (".", ")")):
+                clean = stripped.replace("**", "").strip()
+                blocks.append(("subheading", clean))
+                i += 1
+                continue
+
+            if stripped.startswith("- ") or stripped.startswith("* "):
+                clean = stripped.lstrip("-* ").replace("**", "").replace("*", "").strip()
+                blocks.append(("bullet", clean))
+                i += 1
+                continue
+
+            clean = stripped.replace("**", "").replace("*", "").strip()
+            blocks.append(("paragraph", clean))
+            i += 1
+
+        return blocks
+
+    blocks = parse_markdown_blocks(ai_report_text)
+    for b_type, b_content in blocks:
+        if b_type == "code_block":
+            clean_lines = [sanitize_text(l) for l in b_content if l.strip()]
+            if not clean_lines:
+                continue
+
+            line_h = 3.6
+            box_h = len(clean_lines) * line_h + 8.5
+            if pdf.get_y() + box_h > 275:
+                pdf.add_page()
+
+            cur_y = pdf.get_y()
+            # Draw container card background and border
+            pdf.set_fill_color(248, 244, 236)
+            pdf.set_draw_color(46, 64, 87)
+            pdf.set_line_width(0.35)
+            pdf.rect(10, cur_y, 190, box_h, "DF")
+
+            # Left accent stripe (Rust #B5541E)
+            pdf.set_fill_color(181, 84, 30)
+            pdf.rect(10, cur_y, 2, box_h, "F")
+
+            # Banner Header Badge
+            pdf.set_xy(14, cur_y + 1.8)
+            pdf.set_font("Helvetica", "B", 7.5)
+            pdf.set_text_color(181, 84, 30)
+            pdf.cell(0, 3.5, "DIAGNOSTIC PROCESS FLOW & TROUBLESHOOTING MAP", new_x="LMARGIN", new_y="NEXT")
+
+            # Monospace schematic lines
             pdf.set_font("Courier", "", 7.5)
-            pdf.set_text_color(40, 40, 40)
-            pdf.cell(0, 3.8, clean_diagram_line, new_x="LMARGIN", new_y="NEXT")
-            continue
+            pdf.set_text_color(43, 38, 34)
+            for c_line in clean_lines:
+                pdf.set_x(14)
+                pdf.cell(182, line_h, c_line, new_x="LMARGIN", new_y="NEXT")
 
-        # Check for un-fenced ASCII diagrams (lines containing box/flowchart symbols)
-        is_diagram_line = (
-            (stripped_line.startswith(("+", "|")) and ("|" in stripped_line or "-" in stripped_line or "+" in stripped_line))
-            or (stripped_line.startswith("[") and ("-->" in stripped_line or "->" in stripped_line or "|" in stripped_line or ("]" in stripped_line and len(stripped_line) < 35)))
-            or (stripped_line in ("v", "^", "|", "||", "+", "-"))
-            or (stripped_line.startswith("v") and len(stripped_line) < 6)
-            or (stripped_line.startswith("^") and len(stripped_line) < 6)
-            or ("--->" in stripped_line or "----" in stripped_line and not stripped_line.startswith("---"))
-        )
+            pdf.set_y(cur_y + box_h + 3)
 
-        if is_diagram_line:
-            clean_diagram_line = sanitize_text(raw_line)
-            pdf.set_font("Courier", "", 7.5)
-            pdf.set_text_color(40, 40, 40)
-            pdf.cell(0, 3.8, clean_diagram_line, new_x="LMARGIN", new_y="NEXT")
-            continue
-
-        # Standard Markdown text rendering
-        pdf.set_font("Helvetica", "", 9.5)
-        pdf.set_text_color(30, 30, 30)
-
-        if not stripped_line or stripped_line.startswith("---"):
+        elif b_type == "spacer":
             pdf.ln(2)
-            continue
 
-        clean_text = stripped_line.lstrip("-*# ").replace("**", "").replace("*", "").strip()
-        clean_text = sanitize_text(clean_text)
-
-        if stripped_line.startswith("#"):
-            pdf.ln(1.5)
+        elif b_type == "heading":
+            pdf.ln(2)
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_text_color(46, 64, 87)
-            pdf.multi_cell(0, 5, clean_text.upper(), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5, sanitize_text(b_content).upper(), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9.5)
             pdf.set_text_color(30, 30, 30)
-        elif stripped_line.startswith("**") or (len(stripped_line) > 2 and stripped_line[0:2].isdigit()):
+
+        elif b_type == "subheading":
             pdf.set_font("Helvetica", "B", 9.5)
             pdf.set_text_color(46, 64, 87)
-            pdf.multi_cell(0, 5.5, clean_text, new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5.5, sanitize_text(b_content), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9.5)
             pdf.set_text_color(30, 30, 30)
-        elif stripped_line.startswith("- ") or stripped_line.startswith("* "):
-            pdf.multi_cell(0, 5, f"  - {clean_text}", new_x="LMARGIN", new_y="NEXT")
-        else:
-            pdf.multi_cell(0, 5, clean_text, new_x="LMARGIN", new_y="NEXT")
+
+        elif b_type == "bullet":
+            pdf.set_font("Helvetica", "", 9.5)
+            pdf.set_text_color(30, 30, 30)
+            pdf.multi_cell(0, 5, f"  - {sanitize_text(b_content)}", new_x="LMARGIN", new_y="NEXT")
+
+        elif b_type == "paragraph":
+            pdf.set_font("Helvetica", "", 9.5)
+            pdf.set_text_color(30, 30, 30)
+            pdf.multi_cell(0, 5, sanitize_text(b_content), new_x="LMARGIN", new_y="NEXT")
 
     pdf.ln(6)
     pdf.set_draw_color(220, 220, 220)
