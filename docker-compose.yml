@@ -1,0 +1,9 @@
+services:
+  yarn-defect-assistant:
+    build: .
+    container_name: ai-yarn-defect-assistant
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    restart: unless-stopped
